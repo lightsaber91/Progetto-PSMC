@@ -1,10 +1,6 @@
-UL *do_bfs_omp(UL source, csrdata *csrg)
-{
-    UL *q1, nq1;
-    UL *q2, nq2;
-    UL *qswap;
-    UL nvisited;
-    UL i, j, s, e, U, V, d;
+UL *do_bfs_omp(UL source, csrdata *csrg) {
+    UL *q, ql, qs;
+    UL nvisited, i, start, end;
     int *visited;
     UL *dist;
 
@@ -20,77 +16,67 @@ UL *do_bfs_omp(UL source, csrdata *csrg)
         exit(EXIT_FAILURE);
     }
 
-    q1      = NULL;
-    q2      = NULL;
+    q       = NULL;
     visited = NULL;
     dist    = NULL;
 
-    nq1      = 0;
-    nq2      = 0;
-    d        = 0;
+    ql       = 0;
     nvisited = 0;
 
     dist      =  (UL *)Malloc(csrg->nv*sizeof(UL));
-    q1        =  (UL *)Malloc(csrg->ne*sizeof(UL));
-    q2        =  (UL *)Malloc(csrg->ne*sizeof(UL));
+    q         =  (UL *)Malloc(csrg->ne*sizeof(UL));
     visited   = (int *)Malloc(csrg->nv*sizeof(int));
 
     memset(visited, 0, csrg->nv*sizeof(int));
     for (i = 0; i < csrg->nv; i++) dist[i] = ULONG_MAX;
 
     // enqueue the source
-    q1[0]        = source;
-    nq1          = 1;
+    q[0]         = source;
+    qs           = 0;
+    ql           = 1;
     dist[source] = 0;
 
-    // traverse the graph
-    while (1) {
-        fprintf(stdout, "\tExploring level %lu, elements in queue = %lu\n", d, nq1);
-        for (i = 0; i < nq1; i++) {
-            // dequeue U
-            U = q1[i];
-            // set as visited
-            visited[U]  = 1;
-            nvisited   += 1;
-            // Search all neighbors of U
-            s = csrg->offsets[U]; e = csrg->offsets[U+1];
+    while(ql-qs !=  0) {
+        start = qs; end = ql;
+        #pragma omp parallel for reduction(+:nvisited)
+        for(i = start; i < end; i++) {
+            UL U, V, s, e, j;
+
+            #pragma omp critical
+            {
+                U = q[i];
+                qs++;
+            }
+            nvisited++;
+            visited[U] = 1;
+
+            s = csrg->offsets[U];
+            e = csrg->offsets[U+1];
+
             for (j = s; j < e; j++) {
                 V = csrg->rows[j];
                 // If V is not visited enqueue it
-                if ((visited[V] != 1) && (dist[V] == ULONG_MAX)) {
-                    if (nq2 > (csrg->ne - 1)) {fprintf(stderr, "Queue overflow error!\nExit!\n");exit(EXIT_FAILURE);}
-                    q2[nq2++] = V;
-                    dist[V]   = d + 1;
+                if ((visited[V] != 1) && dist[V] == ULONG_MAX) {
+                    dist[V]   = dist[U] + 1;
+                    #pragma omp critical
+                    {
+                        q[ql++] = V;
+                    }
                 }
             }
         }
-
-        fprintf(stdout, "\tExploring level %lu,    the next queue = %lu\n", d, nq2);
+        
+        fprintf(stdout, "\t Next queue lenght = %lu\n", ql-qs);
         if(csrg->nv < 50) {
-        fprintf(stdout, "\tcurrent queue:\t");
-        for (i = 0; i < nq1; i++) fprintf(stdout, "%lu ", q1[i]);
+        fprintf(stdout, "\t Queue:\t");
+        for (i = start; i < end; i++) fprintf(stdout, "%lu ", q[i]);
         fprintf(stdout, "\n");
-        fprintf(stdout, "\tvisited:\t");
+        fprintf(stdout, "\t Visited:\t");
         for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
         fprintf(stdout, "\n");
-        fprintf(stdout, "\tnext queue:\t");
-        for (i = 0; i < nq2; i++) fprintf(stdout, "%lu ", q2[i]);
-        fprintf(stdout, "\n");
-        }
-        if (nq2 == 0) break;
-
-        nq1   = nq2;
-        nq2   = 0;
-        qswap = q1;
-        q1    = q2;
-        q2    = qswap;
-        d    += 1;
-
-        if(d > csrg->nv) {
-            fprintf(stderr, "\nError: distance overflow!Exit\n\n");
-            exit(EXIT_FAILURE);
         }
     }
+
 
     fprintf(stdout, "Finished BFS, visited %lu nodes\n", nvisited);
     UL count = 0;
@@ -106,7 +92,6 @@ UL *do_bfs_omp(UL source, csrdata *csrg)
 
     return dist;
 }
-
 
 UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed) {
 
@@ -154,7 +139,7 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
     // Timing output
     fprintf(stdout, "\n");
     fprintf(stdout, "build csr  time = \t%.5f\n", csrtime);
-    fprintf(stdout, "do BFS     time = \t%.5f\n", bfstime);
+    fprintf(stdout, "do BFS OMP time = \t%.5f\n", bfstime);
     fprintf(stdout, "\n");
 
     if(csrgraph.offsets) free(csrgraph.offsets);
