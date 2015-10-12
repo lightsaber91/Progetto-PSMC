@@ -1,8 +1,6 @@
 UL *do_bfs_omp(UL source, csrdata *csrg) {
-    UL *q, ql, qs;
-    UL nvisited, i, start, end;
+    UL *q, ql, qs, i, start, end, *dist;
     int *visited;
-    UL *dist;
 
     fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrg->nv, csrg->ne, source);
     // if(csrg->nv < 50) print_csr(csrg);
@@ -20,9 +18,6 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
     visited = NULL;
     dist    = NULL;
 
-    ql       = 0;
-    nvisited = 0;
-
     dist      =  (UL *)Malloc(csrg->nv*sizeof(UL));
     q         =  (UL *)Malloc(csrg->ne*sizeof(UL));
     visited   = (int *)Malloc(csrg->nv*sizeof(int));
@@ -35,10 +30,11 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
     qs           = 0;
     ql           = 1;
     dist[source] = 0;
-
+    visited[source] = 1;
     while(ql-qs !=  0) {
         start = qs; end = ql;
-        #pragma omp parallel for reduction(+:nvisited)
+
+        #pragma omp parallel for
         for(i = start; i < end; i++) {
             UL U, V, s, e, j;
 
@@ -47,8 +43,6 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                 U = q[i];
                 qs++;
             }
-            nvisited++;
-            visited[U] = 1;
 
             s = csrg->offsets[U];
             e = csrg->offsets[U+1];
@@ -57,15 +51,16 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                 V = csrg->rows[j];
                 // If V is not visited enqueue it
                 if ((visited[V] != 1) && dist[V] == ULONG_MAX) {
-                    dist[V]   = dist[U] + 1;
-                    #pragma omp critical
-                    {
-                        q[ql++] = V;
+                    if ((__sync_lock_test_and_set(&visited[V], 1)) == 0) {
+                        dist[V]   = dist[U] + 1;
+                        #pragma omp critical
+                        {
+                            q[ql++] = V;
+                        }
                     }
                 }
             }
         }
-        
         fprintf(stdout, "\t Next queue lenght = %lu\n", ql-qs);
         if(csrg->nv < 50) {
         fprintf(stdout, "\t Queue:\t");
@@ -77,15 +72,14 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
         }
     }
 
-
-    fprintf(stdout, "Finished BFS, visited %lu nodes\n", nvisited);
+    fprintf(stdout, "Finished BFS, visited %lu nodes\n", ql);
     UL count = 0;
     for (i = 0; i < csrg->nv; i++) {
         if (visited[i] == 1)
             count += 1;
     }
-    if (nvisited != count) {
-        fprintf(stderr, "\nBFS is wrong! nvisited = %lu != count = %lu.\nExit.\n\n", nvisited, count);
+    if (ql != count) {
+        fprintf(stderr, "\nBFS is wrong! nvisited = %lu != count = %lu.\nExit.\n\n", ql, count);
     }
 
     fprintf(stdout, "\n");
