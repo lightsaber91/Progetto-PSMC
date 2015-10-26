@@ -1,5 +1,58 @@
+void swap(UL *yi, UL *yj){
+    UL tmp = *yi;
+    *yi = *yj;
+    *yj = tmp;
+}
+
+UL separate(UL *x, UL low, UL high){
+
+    UL i, pivot, last;
+    pivot = x[low];  // would be better to take, e.g., median of 1st 3 elts
+    swap(x+low, x+high);
+    swap(x+low+1, x+high+1);
+    last = low;
+    for (i = low; i < high; i+=2) {
+        if (x[i] <= pivot) {
+            swap(x+last, x+i);
+            swap(x+last+1, x+i+1);
+            last += 2;
+        }
+        if (x[i] == x[i+2] && x[i+1] > x[i+3] ) {
+            swap(x+last, x+i);
+            swap(x+last+1, x+i+1);
+        }
+    }
+    swap(x+last,x+high);
+    swap(x+last+1,x+high+1);
+    return last;
+}
+
+void parallel_qs(UL *z, UL zstart, UL zend, int firstcall)
+{
+    if(firstcall == 1) {
+        #pragma omp parallel
+        {
+            #pragma omp single nowait
+            parallel_qs(z, zstart, zend, 0);
+        }
+    }
+    else {
+        UL part;
+        if (zstart < zend) {
+            part = separate(z,zstart,zend);
+            #pragma omp task
+            parallel_qs(z,zstart,part-2,0);
+            #pragma omp task
+            parallel_qs(z,part+2,zend,0);
+        }
+    }
+}
+
 UL *do_bfs_omp(UL source, csrdata *csrg) {
-    UL *q, ql, qs, i, start, end, *dist;
+
+    printf("OMP THREAD NUM :: %d\n\n\n", omp_get_max_threads());
+
+    UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
     int *visited;
 
     fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrg->nv, csrg->ne, source);
@@ -29,14 +82,15 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
     q[0]         = source;
     qs           = 0;
     ql           = 1;
-    dist[source] = 0;
+    d            = 0;
+    dist[source] = d;
     visited[source] = 1;
+
     while(ql-qs !=  0) {
         start = qs; end = ql;
 
-        #pragma omp parallel for
+        #pragma omp parallel for private(U,V,s,e,j)
         for(i = start; i < end; i++) {
-            UL U, V, s, e, j;
 
             #pragma omp critical
             {
@@ -52,7 +106,7 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                 // If V is not visited enqueue it
                 if ((visited[V] != 1) && dist[V] == ULONG_MAX) {
                     if ((__sync_lock_test_and_set(&visited[V], 1)) == 0) {
-                        dist[V]   = dist[U] + 1;
+                        dist[V]   = d + 1;
                         #pragma omp critical
                         {
                             q[ql++] = V;
@@ -61,7 +115,8 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                 }
             }
         }
-        fprintf(stdout, "\t Next queue lenght = %lu\n", ql-qs);
+
+        fprintf(stdout, "\t Exploring level %lu,     the next queue = %lu\n", d, ql-qs);
         if(csrg->nv < 50) {
         fprintf(stdout, "\t Queue:\t");
         for (i = start; i < end; i++) fprintf(stdout, "%lu ", q[i]);
@@ -70,6 +125,8 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
         for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
         fprintf(stdout, "\n");
         }
+
+        d++;
     }
 
     fprintf(stdout, "Finished BFS, visited %lu nodes\n", ql);
@@ -84,6 +141,7 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
 
     fprintf(stdout, "\n");
 
+    free(q);
     return dist;
 }
 

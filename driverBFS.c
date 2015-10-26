@@ -86,7 +86,7 @@ int Usage (char *str);
 #ifdef OMP
 #include "ompBFS.c"
 #elif CUDA
-#include "cudaBFS.c"
+#include "cudaBFS.cu"
 #endif
 
 int main(int argc, char **argv)
@@ -905,8 +905,18 @@ UL norm_graph(UL *ed, UL ned) {
     if (ned == 0) return 0;
 
     fprintf(stdout, "\tRemoving self loop and multi edges\n");
+    printf("N egdes %lu\n\n\n\n", ned);
+/*    for(n = 0; n < ned; n++) printf("%lu - ", ed[n]);
+    printf("\n\n");
+
+    parallel_qs(ed, 0, 2*ned-2, 1);
+
+    for(n = 0; n < ned; n++) printf("%lu - ", ed[n]);
+    printf("\n\n");*/
 
     qsort(ed, ned, sizeof(UL[2]), cmpedge);
+
+    //for(n = 0; n < ned; n++) printf("%lu - ", ed[n]);
 
     // Handle first self-loop
     l = (ed[0] == ed[1]) ? 0 : 1;
