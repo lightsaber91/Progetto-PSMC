@@ -51,6 +51,9 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
 // Validate the given distances array by calling traverse and comparing the distances
 int validate_bfs(UL *edges, UL nedges, UL nvertices, UL root, UL *distances);
 
+// parallel version of traverse
+UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed);
+
 // Wrong versions to check the validate function
 UL *do_bfs_wrong(UL source, csrdata *csrg, int wrong);
 UL *traverse_wrong(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed);
@@ -82,12 +85,6 @@ int print_csr(csrdata *in);
 int print_edges(UL *ed, UL ned);
 int Usage (char *str);
 /****************************************************************************************************/
-
-#ifdef OMP
-#include "ompBFS.c"
-#elif CUDA
-#include "cudaBFS.cu"
-#endif
 
 int main(int argc, char **argv)
 {

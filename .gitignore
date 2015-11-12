@@ -1,2 +1,4 @@
-bfs_*
+cuda
 dist_file.dat
+omp
+omp_arch

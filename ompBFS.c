@@ -1,52 +1,5 @@
-void swap(UL *yi, UL *yj){
-    UL tmp = *yi;
-    *yi = *yj;
-    *yj = tmp;
-}
-
-UL separate(UL *x, UL low, UL high){
-
-    UL i, pivot, last;
-    pivot = x[low];  // would be better to take, e.g., median of 1st 3 elts
-    swap(x+low, x+high);
-    swap(x+low+1, x+high+1);
-    last = low;
-    for (i = low; i < high; i+=2) {
-        if (x[i] <= pivot) {
-            swap(x+last, x+i);
-            swap(x+last+1, x+i+1);
-            last += 2;
-        }
-        if (x[i] == x[i+2] && x[i+1] > x[i+3] ) {
-            swap(x+last, x+i);
-            swap(x+last+1, x+i+1);
-        }
-    }
-    swap(x+last,x+high);
-    swap(x+last+1,x+high+1);
-    return last;
-}
-
-void parallel_qs(UL *z, UL zstart, UL zend, int firstcall)
-{
-    if(firstcall == 1) {
-        #pragma omp parallel
-        {
-            #pragma omp single nowait
-            parallel_qs(z, zstart, zend, 0);
-        }
-    }
-    else {
-        UL part;
-        if (zstart < zend) {
-            part = separate(z,zstart,zend);
-            #pragma omp task
-            parallel_qs(z,zstart,part-2,0);
-            #pragma omp task
-            parallel_qs(z,part+2,zend,0);
-        }
-    }
-}
+#include "driverBFS.c"
+#include <omp.h>
 
 UL *do_bfs_omp(UL source, csrdata *csrg) {
 
@@ -89,14 +42,10 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
     while(ql-qs !=  0) {
         start = qs; end = ql;
 
-        #pragma omp parallel for private(U,V,s,e,j)
+        #pragma omp parallel for private(U,V,s,e,j) reduction(+:qs)
         for(i = start; i < end; i++) {
-
-            #pragma omp critical
-            {
-                U = q[i];
-                qs++;
-            }
+            U = q[i];
+            qs++;
 
             s = csrg->offsets[U];
             e = csrg->offsets[U+1];
@@ -114,7 +63,7 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                     }
                 }
             }
-        }
+		}
 
         fprintf(stdout, "\t Exploring level %lu,     the next queue = %lu\n", d, ql-qs);
         if(csrg->nv < 50) {
