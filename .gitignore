@@ -2,3 +2,4 @@ cuda
 dist_file.dat
 omp
 omp_arch
+bfs_*

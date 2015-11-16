@@ -3,8 +3,6 @@
 
 UL *do_bfs_omp(UL source, csrdata *csrg) {
 
-    printf("OMP THREAD NUM :: %d\n\n\n", omp_get_max_threads());
-
     UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
     int *visited;
 

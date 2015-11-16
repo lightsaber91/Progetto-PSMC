@@ -7,18 +7,21 @@ CCARCH = -march=haswell --fast-math
 CUDAFLAG = -m64 -arch=sm_50 -O3
 CFILE = ompBFS.c
 CUFILE = cudaBFS.cu
-TARGET = omp cuda omp_arch
+DRIVER = driverBFS.c
+TARGET = bfs_omp bfs_cuda bfs_omp_arch
 
 all: $(TARGET)
 
-clean:
-	rm -f $(TARGET) dist_file.dat
-
-omp:
+bfs_omp: $(CFILE) $(DRIVER)
 	$(CC) $(CFLAGS) $(CFILE) $(CCOMPFLAG) -o $@
 
-omp_arch:
+bfs_omp_arch: $(CFILE) $(DRIVER)
 	$(CC) $(CCARCH) $(CFLAGS) $(CFILE) $(CCOMPFLAG) -o $@
 
-cuda:
+bfs_cuda: $(CUFILE) $(DRIVER)
 	$(NVCC) $(CUDAFLAG) $(CUFILE) -o $@
+
+.PHONY: clean
+
+clean:
+	rm -f $(TARGET) dist_file.dat

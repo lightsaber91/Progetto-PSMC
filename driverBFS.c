@@ -155,7 +155,7 @@ int main(int argc, char **argv)
             case 'h':
                     Usage(argv[0]);
                     return 0;
-                    break;
+//                    break;
             case ':': // option without operand
                     fprintf(stderr, "Option -%c requires an operand\n", optopt);
                     errflg++;
@@ -178,6 +178,10 @@ int main(int argc, char **argv)
         Usage(argv[0]);
         return 0;
     }
+
+    nvertices = (1 << scale);
+    nedges    = ef * nvertices;
+
     if ((nedges > ULONG_MAX)) {
         fprintf(stderr, "Too many edges! Exit.\n");
         exit(EXIT_FAILURE);
@@ -196,9 +200,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "Wrong value for gengraph! Must be 0, 1, 2\n");
         exit(EXIT_FAILURE);
     }
-
-    nvertices = (1 << scale);
-    nedges    = ef * nvertices;
 
     fprintf(stdout, "\nRunning CPU BFS:\n");
     fprintf(stdout, "\tscale              = %d\n",  scale);
