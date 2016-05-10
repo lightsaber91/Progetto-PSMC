@@ -1,25 +1,48 @@
 #include "driverBFS.c"
 #include "cudaBFS.h"
 
-__global__ kernel_search(gpudata data, csrdata csrg) {
+__global__ void kernel_search(gpudata data, csrdata csrg) {
 
+    const int WARPS_PER_BLOCK = blockDim.x / WARP;
+    int i, j, warpId;
+    UL V, s, e, *neigh;
+
+    *(data.redo) = 0;
+    warpId = blockIdx.x * WARPS_PER_BLOCK + threadIdx.x / WARP;
+    i = warpId;
+
+    while (i < csrg.nv) {
+        if (data.queue[i]) {
+
+            data.queue[i] = 0;
+            s = csrg.offsets[i];
+            e = csrg.offsets[i+1] - s;
+
+            neigh = &csrg.rows[s];
+
+            for (j = threadIdx.x % WARP; j < e; j += WARP) {
+                V = neigh[j];
+                data.next_queue[V] = 1;
+            }
+        }
+        i += (gridDim.x * blockDim.x) / WARP;
+    }
 }
 
-__global__ kernel_compute(gpudata data) {
+__global__ void kernel_compute(gpudata data) {
     UL prev_level;
 
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     while (tid < data.vertex) {
-        if (data.next_queue[i] == 1) {
+        if (data.next_queue[tid]) {
             *(data.redo) = 1;
-            data.next_queue[i] = 0;
-            prev_level = data.level[i];
-            data.dist[i] = min(data.level+1, prev_level);
-            /* If dist changes, the node has to be inserted in the next frontier */
-            data.queue[i] = (prev_level == ULONG_MAX);
+            data.next_queue[tid] = 0;
+            prev_level = data.dist[tid];
+            data.dist[tid] = data.level+1 < prev_level ? data.level+1 : prev_level;
+            data.queue[tid] = (prev_level == ULONG_MAX);
         }
-        i += gridDim.x * blockDim.x;
+        tid += gridDim.x * blockDim.x;
     }
 }
 
@@ -78,7 +101,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     START_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
     copy_data_on_gpu(&host, &dev);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
-    printf("Time spent for allocation and copy: %f\n", alloc_copy_time);
+    printf("Time spent for allocation and copy: %.5f\n", alloc_copy_time);
 
     // Faccio partire il kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
@@ -87,10 +110,10 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
         kernel_search<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
         kernel_compute<<<num_blocks, num_threads>>>(dev);
         dev.level += 1;
-        HANDLE_ERROR(cudaMemcpy(&redo, dev->redo, sizeof(char), cudaMemcpyDeviceToHost));
+        HANDLE_ERROR(cudaMemcpy(&redo, (&dev)->redo, sizeof(char), cudaMemcpyDeviceToHost));
     }
     bfs_time = STOP_CUDA_TIMER(&exec_start, &exec_stop);
-    printf("Time spent for cuda bfs: %f\n", bfs_time);
+    printf("Time spent for cuda bfs: %.5f\n", bfs_time);
 
     copy_data_on_host(&host, &dev);
     free_gpu_mem(&dev, csrgraph_gpu);

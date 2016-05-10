@@ -61,14 +61,14 @@ void copy_data_on_gpu(const gpudata *host, gpudata *gpu) {
     HANDLE_ERROR(cudaMalloc((void**) &gpu->next_queue, host->vertex * sizeof(char)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->dist, host->vertex * sizeof(UL)));
 
-    HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue, vertex * sizeof(char), cudaMemcpyHostToDevice));
-    HANDLE_ERROR(cudaMemcpy(gpu->dist, host->dist, vertex * sizeof(char), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue, host->vertex * sizeof(char), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->dist, host->dist, host->vertex * sizeof(char), cudaMemcpyHostToDevice));
 
-    HANDLE_ERROR(cudaMemset(gpu->next_queue, 0, vertex * sizeof(char)));
+    HANDLE_ERROR(cudaMemset(gpu->next_queue, 0, host->vertex * sizeof(char)));
 }
 
 void copy_data_on_host(gpudata *host, gpudata *gpu) {
-    HANDLE_ERROR(cudaMemcpy(&gpu->dist, &host->dist, (gpu->level) * sizeof(UL),cudaMemcpyDeviceToHost));
+    HANDLE_ERROR(cudaMemcpy(host->dist, gpu->dist, (host->vertex) * sizeof(char),cudaMemcpyDeviceToHost));
     free(host->queue);
     free(host->next_queue);
 }
