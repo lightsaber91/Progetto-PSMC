@@ -1,79 +1,114 @@
 #include "driverBFS.c"
+#include "cudaBFS.h"
 
-#define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
-static void HandleError( cudaError_t err, const char *file, int line )
-{
-    if (err != cudaSuccess) {
-        printf( "%s in %s at line %d\n", cudaGetErrorString( err ),file, line );
-        //exit( EXIT_FAILURE );
+__global__ kernel_search(gpudata data, csrdata csrg) {
+
+}
+
+__global__ kernel_compute(gpudata data) {
+    UL prev_level;
+
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    while (tid < data.vertex) {
+        if (data.next_queue[i] == 1) {
+            *(data.redo) = 1;
+            data.next_queue[i] = 0;
+            prev_level = data.level[i];
+            data.dist[i] = min(data.level+1, prev_level);
+            /* If dist changes, the node has to be inserted in the next frontier */
+            data.queue[i] = (prev_level == ULONG_MAX);
+        }
+        i += gridDim.x * blockDim.x;
     }
 }
 
-static void START_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
+
+UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cudatime)
 {
-	HANDLE_ERROR( cudaEventCreate(start));
-	HANDLE_ERROR( cudaEventCreate(stop));
-	HANDLE_ERROR( cudaEventRecord(*start, 0));
-}
+    UL U, V, s, e, i, j;
 
-static double STOP_AND_PRINT_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
-{
-	HANDLE_ERROR( cudaEventRecord(*stop, 0));
-	HANDLE_ERROR( cudaEventSynchronize(*stop));
-	float time=0;
-	HANDLE_ERROR( cudaEventElapsedTime(&time, *start, *stop));
-	HANDLE_ERROR( cudaEventDestroy(*start));
-	HANDLE_ERROR( cudaEventDestroy(*stop));
-	return time;
-}
+    // Creo le strutture per i timer
+    cudaEvent_t exec_start, exec_stop, alloc_copy_start, alloc_copy_stop;
+    double alloc_copy_time = 0.0, bfs_time = 0.0;
+    char redo = 1;
 
-__global__ void cuda_bfs_parallel()
-{
-    return;
-}
+    // Dati per la gpu
+    gpudata host;
+    gpudata dev;
 
-UL *do_bfs_cuda(UL source, csrdata *csrg, double *cudatime)
-{
-    UL *d_cpu = NULL, *d_gpu = NULL, i;
-    int *v_cpu = NULL, *v_gpu = NULL;
-    cudaEvent_t start, stop;
+    // Variabili per ottimizzare la bfs
+    int gpu, num_threads, num_blocks;
+    cudaDeviceProp gpu_prop;
 
-    // Qui verranno allocate tutte le strutture dati da passare alla gpu
-    d_cpu = (UL *)Malloc(csrg->nv*sizeof(UL));
-    v_cpu = (int *)Malloc(csrg->nv*sizeof(int));
+    // Leggo le proprietà del device per ottimizzare la bfs
+    cudaGetDevice(&gpu);
+    cudaGetDeviceProperties(&gpu_prop, gpu);
+    num_threads = gpu_prop.maxThreadsPerBlock;
+    num_blocks = ceil(csrgraph->nv/num_threads);
+    num_blocks = num_blocks < gpu_prop.maxGridSize[0] ? num_blocks : gpu_prop.maxGridSize[0];
 
-    memset(v_cpu, 0, csrg->nv*sizeof(int));
-    for (i = 0; i < csrg->nv; i++) d_cpu[i] = ULONG_MAX;
+    printf("\nNumber of threads: %d\nNumber of blocks: %d\n\n", num_threads, num_blocks);
 
-    HANDLE_ERROR(cudaMalloc((void**)&d_gpu, csrg->nv*sizeof(UL)));
-    HANDLE_ERROR(cudaMalloc((void**)&v_gpu, csrg->nv*sizeof(int)));
-    HANDLE_ERROR(cudaMemcpy(d_gpu, d_cpu, csrg->nv*sizeof(UL), cudaMemcpyHostToDevice));
-    HANDLE_ERROR(cudaMemcpy(v_gpu, v_cpu, csrg->nv*sizeof(int), cudaMemcpyHostToDevice));
+    // Inizializzo i dati
+    host.level = 0;
+    host.queue = (char *) Malloc(csrgraph->nv);
+    host.dist = (UL *) Malloc(csrgraph->nv*sizeof(UL));
+    host.vertex = csrgraph->nv;
+    memset(host.queue, 0, csrgraph->nv);
+    for (i = 0; i < csrgraph->nv; i++) host.dist[i] = ULONG_MAX;
 
-    START_CUDA_TIMER(&start, &stop);
-    //faccio partire il kernel
-    cuda_bfs_parallel<<<1,1>>>();
-    *cudatime = STOP_AND_PRINT_CUDA_TIMER(&start, &stop);
+    // La prima iterazione la faccio seriale
+    host.dist[source] = 0;
 
-    // Qui copio il risultato sulla cpu
-    HANDLE_ERROR(cudaMemcpy(d_cpu, d_gpu, csrg->nv*sizeof(UL), cudaMemcpyDeviceToHost));
-    HANDLE_ERROR(cudaMemcpy(v_cpu, v_gpu, csrg->nv*sizeof(int), cudaMemcpyDeviceToHost));
-    HANDLE_ERROR(cudaFree(d_gpu));
-    HANDLE_ERROR(cudaFree(v_gpu));
+    // dequeue U
+    U = source;
+    // Search all neighbors of U
+    s = csrgraph->offsets[U]; e = csrgraph->offsets[U+1];
+    for (j = s; j < e; j++) {
+        V = csrgraph->rows[j];
+        // If V is not visited enqueue it and set its distance
+        host.queue[V] = 1;
+        host.dist[V]  = host.level + 1;
+    }
+    host.level += 1;
+    dev.level = host.level;
 
-    return d_cpu;
+    // Inizio ad allocare memoria e copiare i dati sulla gpu
+    START_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
+    copy_data_on_gpu(&host, &dev);
+    alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
+    printf("Time spent for allocation and copy: %f\n", alloc_copy_time);
+
+    // Faccio partire il kernel
+    START_CUDA_TIMER(&exec_start, &exec_stop);
+    while(redo) {
+        // lancio il kernel
+        kernel_search<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
+        kernel_compute<<<num_blocks, num_threads>>>(dev);
+        dev.level += 1;
+        HANDLE_ERROR(cudaMemcpy(&redo, dev->redo, sizeof(char), cudaMemcpyDeviceToHost));
+    }
+    bfs_time = STOP_CUDA_TIMER(&exec_start, &exec_stop);
+    printf("Time spent for cuda bfs: %f\n", bfs_time);
+
+    copy_data_on_host(&host, &dev);
+    free_gpu_mem(&dev, csrgraph_gpu);
+
+    *cudatime = alloc_copy_time + bfs_time;
+    return host.dist;
 }
 
 UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed)
 {
-    csrdata csrgraph;     // csr data structure to represent the graph
+    csrdata csrgraph, csrgraph_gpu;     // csr data structure to represent the graph
 	FILE *fout;
 	UL i;
 	UL *dist;             // array of distances from the source
 
 	// Vars for timing
 	struct timeval begin, end;
-	double cudatime, csrtime;
+	double cudatime = 0.0, csrtime;
 	int timer = 1;
 
 	csrgraph.offsets = NULL;
@@ -87,16 +122,15 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 	csrgraph.deg     = (UL *)Malloc(nvertices    *sizeof(UL));
 
 	build_csr(edges, nedges, nvertices, &csrgraph);
+    copy_csr_on_gpu(&csrgraph, &csrgraph_gpu);
 	END_TIMER(end);
 	ELAPSED_TIME(csrtime, begin, end)
-	if (csrgraph.nv < 50) print_csr(&csrgraph);
-
 	if (randsource) {
 		root = random_source(&csrgraph, seed);
 		fprintf(stdout, "Random source vertex %lu\n", root);
 	}
 
-    dist = do_bfs_cuda(root, &csrgraph, &cudatime);
+    dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime);
 
 	// Print distance array to file
 	fout = Fopen(DISTANCE_OUT_FILE, "w+");
@@ -104,9 +138,9 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 	fclose(fout);
 
 	// Timing output
-	fprintf(stdout, "\n");
-	fprintf(stdout, "build csr  time = \t%.5f\n", csrtime);
-	fprintf(stdout, "do Cuda OMP time = \t%.5f\n", cudatime);
+    fprintf(stdout, "\n");
+	fprintf(stdout, "build csr time = \t%.5f\n", csrtime);
+	fprintf(stdout, "Cuda bfs  time = \t%.5f\n", cudatime);
 	fprintf(stdout, "\n");
 
 	if(csrgraph.offsets) free(csrgraph.offsets);

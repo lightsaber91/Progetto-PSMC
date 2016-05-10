@@ -3,6 +3,8 @@
 
 UL *do_bfs_omp(UL source, csrdata *csrg) {
 
+    printf("Numero Threads: %d\n", omp_get_max_threads());
+
     UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
     int *visited;
 
@@ -39,7 +41,6 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
 
     while(ql-qs !=  0) {
         start = qs; end = ql;
-
         #pragma omp parallel for private(U,V,s,e,j) reduction(+:qs)
         for(i = start; i < end; i++) {
             U = q[i];
@@ -62,17 +63,15 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                 }
             }
 		}
-
         fprintf(stdout, "\t Exploring level %lu,     the next queue = %lu\n", d, ql-qs);
         if(csrg->nv < 50) {
-        fprintf(stdout, "\t Queue:\t");
-        for (i = start; i < end; i++) fprintf(stdout, "%lu ", q[i]);
-        fprintf(stdout, "\n");
-        fprintf(stdout, "\t Visited:\t");
-        for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
-        fprintf(stdout, "\n");
+            fprintf(stdout, "\t Queue:\t");
+            for (i = start; i < end; i++) fprintf(stdout, "%lu ", q[i]);
+            fprintf(stdout, "\n");
+            fprintf(stdout, "\t Visited:\t");
+            for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
+            fprintf(stdout, "\n");
         }
-
         d++;
     }
 
