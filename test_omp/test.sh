@@ -1,7 +1,6 @@
 #!/bin/bash
+./bfs_omp -V 1 -g 1 -S 20 -E 800 > graph1_S20_E800.txt
+./bfs_omp -V 1 -g 1 -S 27 -E 10 > graph1_S27_E10.txt
 
-#Innanzitutto bisogna vedere se funziona cambiare i thread (farlo in c diretto??)
-./bfs_omp -V 1 -g 1 -S 18 -E 150 > graph_1.txt
-
-# Poi bisogna farlo per entrambi i tipi di grafo
-#./bfs_omp -V 1 -g 1 -S 25 -E 25 >> graph_2.txt
+./bfs_omp -V 1 -g 2 -S 20 -E 800 > graph2_S20_E800.txt
+./bfs_omp -V 1 -g 2 -S 27 -E 10 > graph2_S27_E10.txt
