@@ -1,48 +1,48 @@
 #include "driverBFS.c"
 #include "cudaBFS.h"
 
-__global__ void kernel_search(gpudata data, csrdata csrg) {
+__global__ void kernel_set_frontier(gpudata data, csrdata csrg) {
 
-    const int WARPS_PER_BLOCK = blockDim.x / WARP;
-    int i, j, warpId;
-    UL V, s, e, *neigh;
+    const int WARPS_PER_BLOCK = blockDim.x/WARP;
+    int i, j, warp_id, increment;
+    UL V, s, e, *node;
 
     *(data.redo) = 0;
-    warpId = blockIdx.x * WARPS_PER_BLOCK + threadIdx.x / WARP;
-    i = warpId;
+    warp_id = blockIdx.x*WARPS_PER_BLOCK + threadIdx.x/WARP;
+	increment = (gridDim.x*blockDim.x)/WARP;
 
-    while (i < csrg.nv) {
-        if (data.queue[i]) {
+	for(i = warp_id; i < csrg.nv; i+= increment) {    
+	    if (data.queue[i]) {
 
             data.queue[i] = 0;
             s = csrg.offsets[i];
             e = csrg.offsets[i+1] - s;
 
-            neigh = &csrg.rows[s];
+            node = &csrg.rows[s];
 
-            for (j = threadIdx.x % WARP; j < e; j += WARP) {
-                V = neigh[j];
-                data.next_queue[V] = 1;
+            for (j = threadIdx.x%WARP; j < e; j += WARP) {
+                V = node[j];
+                data.frontier[V] = 1;
             }
         }
-        i += (gridDim.x * blockDim.x) / WARP;
     }
 }
 
-__global__ void kernel_compute(gpudata data) {
-    UL prev_level;
+__global__ void kernel_compute_distance(gpudata data) {
+    UL prev_level, dist;
 
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int tid = (blockIdx.x*blockDim.x)+threadIdx.x;
 
     while (tid < data.vertex) {
-        if (data.next_queue[tid]) {
+        if (data.frontier[tid]) {
             *(data.redo) = 1;
-            data.next_queue[tid] = 0;
+            data.frontier[tid] = 0;
             prev_level = data.dist[tid];
-            data.dist[tid] = data.level+1 < prev_level ? data.level+1 : prev_level;
+			dist = data.level + 1;
+            data.dist[tid] = (dist < prev_level) ? dist : prev_level;
             data.queue[tid] = (prev_level == ULONG_MAX);
         }
-        tid += gridDim.x * blockDim.x;
+        tid += gridDim.x*blockDim.x;
     }
 }
 
@@ -67,10 +67,9 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     // Leggo le proprietà del device per ottimizzare la bfs
     cudaGetDevice(&gpu);
     cudaGetDeviceProperties(&gpu_prop, gpu);
-    num_threads = gpu_prop.maxThreadsPerBlock;
-    num_blocks = ceil(csrgraph->nv/num_threads);
-    num_blocks = num_blocks < gpu_prop.maxGridSize[0] ? num_blocks : gpu_prop.maxGridSize[0];
-
+    num_threads = gpu_prop.maxThreadsPerBlock / 4;
+    num_blocks = csrgraph->nv/num_threads;
+	if((csrgraph->nv % num_threads) > 0) num_blocks++;
     printf("\nNumber of threads: %d\nNumber of blocks: %d\n\n", num_threads, num_blocks);
 
     // Inizializzo i dati
@@ -107,8 +106,8 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(redo) {
         // lancio il kernel
-        kernel_search<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
-        kernel_compute<<<num_blocks, num_threads>>>(dev);
+        kernel_set_frontier<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
+        kernel_compute_distance<<<num_blocks, num_threads>>>(dev);
         dev.level += 1;
         HANDLE_ERROR(cudaMemcpy(&redo, (&dev)->redo, sizeof(char), cudaMemcpyDeviceToHost));
     }
