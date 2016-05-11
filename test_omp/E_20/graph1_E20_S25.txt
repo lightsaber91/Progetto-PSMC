@@ -1,0 +1,35 @@
+
+Running CPU BFS:
+	scale              = 25
+	average degree     = 20
+	number of vertices = 33554432
+	number of edges    = 671088640
+	random seed 1      = 1
+	random seed 2      = 2
+	sizeof(vertex)     = 8
+	Mirroring edges -> Graph will be undirected, nedges = 1342177259
+	Removing self loop and multi edges
+N egdes 1342177259
+
+
+
+
+Performing BFS on a graph with 33554432 vertices and 1342176346 edges starting from 0
+Numero Threads: 1
+do BFS OMP time = 	36.55083
+
+Numero Threads: 2
+do BFS OMP time = 	26.58259
+
+Numero Threads: 4
+do BFS OMP time = 	21.59948
+
+Numero Threads: 8
+do BFS OMP time = 	20.02441
+
+Numero Threads: 16
+do BFS OMP time = 	21.97896
+
+Numero Threads: 32
+do BFS OMP time = 	24.55848
+

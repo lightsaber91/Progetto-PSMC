@@ -1,0 +1,20 @@
+
+Running CPU BFS:
+	scale              = 25
+	average degree     = 20
+	number of vertices = 33554432
+	number of edges    = 671088640
+	random seed 1      = 1
+	random seed 2      = 2
+	sizeof(vertex)     = 8
+	Mirroring edges -> Graph will be undirected, nedges = 1342177259
+	Removing self loop and multi edges
+N egdes 1342177259
+
+
+
+Random source vertex 28940282
+
+build csr  time = 	138.14005
+do BFS     time = 	74.91796
+
