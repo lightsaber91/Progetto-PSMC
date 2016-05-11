@@ -3,13 +3,8 @@
 
 UL *do_bfs_omp(UL source, csrdata *csrg) {
 
-    printf("Numero Threads: %d\n", omp_get_max_threads());
-
     UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
     char *visited;
-
-    fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrg->nv, csrg->ne, source);
-    // if(csrg->nv < 50) print_csr(csrg);
 
     if (csrg->deg[source] == 0) {
         fprintf(stdout, "\n\tWarning the source has degree 0\n\tNothing to do!");
@@ -62,7 +57,7 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
                 }
             }
 		}
-        fprintf(stdout, "\t Exploring level %lu,     the next queue = %lu\n", d, ql-qs);
+/*        fprintf(stdout, "\t Exploring level %lu,     the next queue = %lu\n", d, ql-qs);
         if(csrg->nv < 50) {
             fprintf(stdout, "\t Queue:\t");
             for (i = start; i < end; i++) fprintf(stdout, "%lu ", q[i]);
@@ -70,10 +65,10 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
             fprintf(stdout, "\t Visited:\t");
             for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
             fprintf(stdout, "\n");
-        }
+        }*/
         d++;
     }
-
+/*
     fprintf(stdout, "Finished BFS, visited %lu nodes\n", ql);
     UL count = 0;
     for (i = 0; i < csrg->nv; i++) {
@@ -85,7 +80,7 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
     }
 
     fprintf(stdout, "\n");
-
+*/
     free(q);
     free(visited);
     return dist;
@@ -100,8 +95,8 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 
     // Vars for timing
     struct timeval begin, end;
-    double bfstime, csrtime;
-    int timer = 1;
+    double bfstime, csrtime, tottime = 0.0;
+    int timer = 1, counter;
 
     csrgraph.offsets = NULL;
     csrgraph.rows    = NULL;
@@ -123,16 +118,20 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
         fprintf(stdout, "Random source vertex %lu\n", root);
     }
 
-    // Perform a BFS traversal that returns the array of distances from the source
-    START_TIMER(begin)
-    dist = do_bfs_omp(root, &csrgraph);
-    END_TIMER(end);
-    ELAPSED_TIME(bfstime, begin, end)
-
+    printf("Numero Threads: %d\n", omp_get_max_threads());
+    fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrgraph.nv, csrgraph.ne, root);    // Perform a BFS traversal that returns the array of distances from the source
+    for(counter = 0; counter < 10; counter ++) {
+        START_TIMER(begin)
+        dist = do_bfs_omp(root, &csrgraph);
+        END_TIMER(end);
+        ELAPSED_TIME(bfstime, begin, end)
+        tottime += bfstime;
+    }
+    bfstime = tottime / 10;
     // Print distance array to file
-    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-    fclose(fout);
+//    fout = Fopen(DISTANCE_OUT_FILE, "w+");
+//    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
+//    fclose(fout);
 
     // Timing output
     fprintf(stdout, "\n");
