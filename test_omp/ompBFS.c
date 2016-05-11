@@ -95,8 +95,8 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 
     // Vars for timing
     struct timeval begin, end;
-    double bfstime, csrtime, tottime = 0.0;
-    int timer = 1, counter;
+    double bfstime, csrtime, tottime;
+    int timer = 1, counter, thread = 1, thread_max;
 
     csrgraph.offsets = NULL;
     csrgraph.rows    = NULL;
@@ -117,28 +117,29 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
         root = random_source(&csrgraph, seed);
         fprintf(stdout, "Random source vertex %lu\n", root);
     }
+    fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrgraph.nv, csrgraph.ne, root);
 
-    printf("Numero Threads: %d\n", omp_get_max_threads());
-    fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrgraph.nv, csrgraph.ne, root);    // Perform a BFS traversal that returns the array of distances from the source
-    for(counter = 0; counter < 10; counter ++) {
-        START_TIMER(begin)
-        dist = do_bfs_omp(root, &csrgraph);
-        END_TIMER(end);
-        ELAPSED_TIME(bfstime, begin, end)
-        tottime += bfstime;
+    thread_max = omp_get_max_threads();
+    for(thread = 1; thread <= thread_max; thread *= 2) {
+        tottime = 0.0;
+        omp_set_num_threads(thread);
+        #pragma omp parallel
+        {
+            #pragma omp single
+            printf("Numero Threads: %d\n", omp_get_num_threads());
+        }
+        // Perform a BFS traversal that returns the array of distances from the source
+        for(counter = 0; counter < 10; counter ++) {
+            START_TIMER(begin)
+            dist = do_bfs_omp(root, &csrgraph);
+            END_TIMER(end);
+            ELAPSED_TIME(bfstime, begin, end)
+            tottime += bfstime;
+        }
+        bfstime = tottime / 10;
+        fprintf(stdout, "do BFS OMP time = \t%.5f\n", bfstime);
+        fprintf(stdout, "\n");
     }
-    bfstime = tottime / 10;
-    // Print distance array to file
-//    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-//    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-//    fclose(fout);
-
-    // Timing output
-    fprintf(stdout, "\n");
-    fprintf(stdout, "build csr  time = \t%.5f\n", csrtime);
-    fprintf(stdout, "do BFS OMP time = \t%.5f\n", bfstime);
-    fprintf(stdout, "\n");
-
     if(csrgraph.offsets) free(csrgraph.offsets);
     if(csrgraph.rows)    free(csrgraph.rows);
 
