@@ -33,3 +33,8 @@ do BFS OMP time = 	13.61617
 Numero Threads: 32
 do BFS OMP time = 	14.03262
 
+
+build csr  time = 	128.19229
+do BFS     time = 	37.42914
+
+Well done!
