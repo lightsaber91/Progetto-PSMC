@@ -3,7 +3,7 @@
 CC = gcc
 NVCC = nvcc
 CFLAGS = -std=gnu99 -W -Wall -Wextra -O3 -fopenmp
-CUDAFLAG = -m64 -arch=sm_35 -O3 -Xcompiler -std=c++98
+CUDAFLAG = -m64 -arch=sm_50 -O3 -Xcompiler -std=c++98
 CFILE = ompBFS.c
 CUFILE = cudaBFS.cu
 HFILE = cudaBFS.h

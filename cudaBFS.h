@@ -9,6 +9,7 @@ typedef struct {
     UL level;
 } gpudata;
 
+
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 static inline void HandleError( cudaError_t err, const char *file, int line )
 {
@@ -17,6 +18,19 @@ static inline void HandleError( cudaError_t err, const char *file, int line )
         exit( EXIT_FAILURE );
     }
 }
+/*
+void count_frontier(gpudata *host, gpudata *gpu) {
+
+    HANDLE_ERROR(cudaMemcpy(host->frontier, gpu->frontier, (host->vertex) * sizeof(char),cudaMemcpyDeviceToHost));
+
+    UL i, count;
+    for(i = 0; i < host->vertex; i++) {
+        if(host->frontier[i])
+            count++;
+    }
+    printf("Level:= %lu\t, count:= %lu", host->level, count);
+}
+*/
 
 static inline void START_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 {
@@ -60,13 +74,13 @@ void copy_data_on_gpu(const gpudata *host, gpudata *gpu) {
     HANDLE_ERROR(cudaMalloc((void**) &gpu->dist, host->vertex * sizeof(UL)));
 
     HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue, host->vertex * sizeof(char), cudaMemcpyHostToDevice));
-    HANDLE_ERROR(cudaMemcpy(gpu->dist, host->dist, host->vertex * sizeof(char), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->dist, host->dist, host->vertex * sizeof(UL), cudaMemcpyHostToDevice));
 
     HANDLE_ERROR(cudaMemset(gpu->frontier, 0, host->vertex * sizeof(char)));
 }
 
 void copy_data_on_host(gpudata *host, gpudata *gpu) {
-    HANDLE_ERROR(cudaMemcpy(host->dist, gpu->dist, (host->vertex) * sizeof(char),cudaMemcpyDeviceToHost));
+    HANDLE_ERROR(cudaMemcpy(host->dist, gpu->dist, (host->vertex) * sizeof(UL),cudaMemcpyDeviceToHost));
 }
 
 void free_gpu_mem(gpudata *gpu, csrdata *csrgraph) {

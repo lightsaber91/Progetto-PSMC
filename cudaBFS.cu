@@ -11,7 +11,7 @@ __global__ void kernel_set_frontier(gpudata data, csrdata csrg) {
     warp_id = blockIdx.x*WARPS_PER_BLOCK + threadIdx.x/WARP;
 	increment = (gridDim.x*blockDim.x)/WARP;
 
-	for(i = warp_id; i < csrg.nv; i+= increment) {    
+	for(i = warp_id; i < csrg.nv; i+= increment) {
 	    if (data.queue[i]) {
 
             data.queue[i] = 0;
@@ -46,7 +46,6 @@ __global__ void kernel_compute_distance(gpudata data) {
     }
 }
 
-
 UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cudatime)
 {
     UL U, V, s, e, i, j;
@@ -67,10 +66,10 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     // Leggo le proprietà del device per ottimizzare la bfs
     cudaGetDevice(&gpu);
     cudaGetDeviceProperties(&gpu_prop, gpu);
-    num_threads = gpu_prop.maxThreadsPerBlock / 4;
+    num_threads = gpu_prop.maxThreadsPerBlock;
     num_blocks = csrgraph->nv/num_threads;
 	if((csrgraph->nv % num_threads) > 0) num_blocks++;
-    printf("\nNumber of threads: %d\nNumber of blocks: %d\n\n", num_threads, num_blocks);
+    printf("\nNumber of threads: %d,\tNumber of blocks: %d\n", num_threads, num_blocks);
 
     // Inizializzo i dati
     host.level = 0;
@@ -107,6 +106,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     while(redo) {
         // lancio il kernel
         kernel_set_frontier<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
+//        count_frontier(&host, &dev);
         kernel_compute_distance<<<num_blocks, num_threads>>>(dev);
         dev.level += 1;
         HANDLE_ERROR(cudaMemcpy(&redo, (&dev)->redo, sizeof(char), cudaMemcpyDeviceToHost));
@@ -116,6 +116,10 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
 
     copy_data_on_host(&host, &dev);
     free_gpu_mem(&dev, csrgraph_gpu);
+
+    for(i = 0; i < csrgraph->nv; i++) {
+        printf("%lu\t", host.dist[i]);
+    }
 
     *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
