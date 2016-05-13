@@ -68,7 +68,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     cudaGetDeviceProperties(&gpu_prop, gpu);
     num_threads = gpu_prop.maxThreadsPerBlock;
     num_blocks = csrgraph->nv/num_threads;
-	if((csrgraph->nv % num_threads) > 0) num_blocks++;
+    if((csrgraph->nv % num_threads) > 0) num_blocks++;
     printf("\nNumber of threads: %d,\tNumber of blocks: %d\n", num_threads, num_blocks);
 
     // Inizializzo i dati
@@ -79,20 +79,8 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     memset(host.queue, 0, csrgraph->nv);
     for (i = 0; i < csrgraph->nv; i++) host.dist[i] = ULONG_MAX;
 
-    // La prima iterazione la faccio seriale
     host.dist[source] = 0;
-
-    // dequeue U
-    U = source;
-    // Search all neighbors of U
-    s = csrgraph->offsets[U]; e = csrgraph->offsets[U+1];
-    for (j = s; j < e; j++) {
-        V = csrgraph->rows[j];
-        // If V is not visited enqueue it and set its distance
-        host.queue[V] = 1;
-        host.dist[V]  = host.level + 1;
-    }
-    host.level += 1;
+    host.queue[source] = 1;
     dev.level = host.level;
 
     // Inizio ad allocare memoria e copiare i dati sulla gpu
