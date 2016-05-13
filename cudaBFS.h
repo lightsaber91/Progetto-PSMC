@@ -18,19 +18,6 @@ static inline void HandleError( cudaError_t err, const char *file, int line )
         exit( EXIT_FAILURE );
     }
 }
-/*
-void count_frontier(gpudata *host, gpudata *gpu) {
-
-    HANDLE_ERROR(cudaMemcpy(host->frontier, gpu->frontier, (host->vertex) * sizeof(char),cudaMemcpyDeviceToHost));
-
-    UL i, count;
-    for(i = 0; i < host->vertex; i++) {
-        if(host->frontier[i])
-            count++;
-    }
-    printf("Level:= %lu\t, count:= %lu", host->level, count);
-}
-*/
 
 static inline void START_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 {
@@ -47,7 +34,7 @@ static inline double STOP_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 	HANDLE_ERROR(cudaEventElapsedTime(&time, *start, *stop));
 	HANDLE_ERROR(cudaEventDestroy(*start));
 	HANDLE_ERROR(cudaEventDestroy(*stop));
-	return time;
+	return (time/1000.0);
 }
 
 

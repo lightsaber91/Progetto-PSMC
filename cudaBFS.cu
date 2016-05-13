@@ -99,14 +99,13 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     START_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
     copy_data_on_gpu(&host, &dev);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
-    printf("Time spent for allocation and copy: %.5f\n", alloc_copy_time);
+    printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
 
     // Faccio partire il kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(redo) {
         // lancio il kernel
         kernel_set_frontier<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
-//        count_frontier(&host, &dev);
         kernel_compute_distance<<<num_blocks, num_threads>>>(dev);
         dev.level += 1;
         HANDLE_ERROR(cudaMemcpy(&redo, (&dev)->redo, sizeof(char), cudaMemcpyDeviceToHost));
@@ -116,10 +115,6 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
 
     copy_data_on_host(&host, &dev);
     free_gpu_mem(&dev, csrgraph_gpu);
-
-    for(i = 0; i < csrgraph->nv; i++) {
-        printf("%lu\t", host.dist[i]);
-    }
 
     *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
@@ -165,8 +160,8 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 
 	// Timing output
     fprintf(stdout, "\n");
-	fprintf(stdout, "build csr time = \t%.5f\n", csrtime);
-	fprintf(stdout, "Cuda bfs  time = \t%.5f\n", cudatime);
+	fprintf(stdout, "Cuda build csr and copy time = \t%.5f\n", csrtime);
+	fprintf(stdout, "Cuda alloc data and bfs time = \t%.5f\n", cudatime);
 	fprintf(stdout, "\n");
 
 	if(csrgraph.offsets) free(csrgraph.offsets);
