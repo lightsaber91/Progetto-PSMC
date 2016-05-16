@@ -1,9 +1,8 @@
-#define WARP 32
-
 typedef struct {
     char *redo;
     char *queue;
     char *frontier;
+    int warp_size;
     UL *dist;
     UL vertex;
     UL level;
@@ -38,7 +37,7 @@ static inline double STOP_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 }
 
 
-void copy_csr_on_gpu(const csrdata *csrg, csrdata *csrg_gpu){
+inline void copy_csr_on_gpu(const csrdata *csrg, csrdata *csrg_gpu){
     UL nv = csrg->nv;
     UL ne = csrg->ne;
 
@@ -52,7 +51,7 @@ void copy_csr_on_gpu(const csrdata *csrg, csrdata *csrg_gpu){
     csrg_gpu->ne = ne;
 }
 
-void copy_data_on_gpu(const gpudata *host, gpudata *gpu) {
+inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu) {
     gpu->vertex = host->vertex;
 
     HANDLE_ERROR(cudaMalloc((void**) &gpu->redo, sizeof(char)));
@@ -76,4 +75,55 @@ void free_gpu_mem(gpudata *gpu, csrdata *csrgraph) {
     HANDLE_ERROR(cudaFree(gpu->dist));
     HANDLE_ERROR(cudaFree(csrgraph->offsets));
     HANDLE_ERROR(cudaFree(csrgraph->rows));
+}
+
+void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex) {
+    int gpu, max_threads, max_blocks, sm, num_blocks, num_threads;
+    cudaDeviceProp gpu_prop;
+
+    // Leggo le proprietà del device per ottimizzare la bfs
+    cudaGetDevice(&gpu);
+    cudaGetDeviceProperties(&gpu_prop, gpu);
+
+    *warp = gpu_prop.warpSize;
+
+    max_threads = gpu_prop.maxThreadsPerBlock;
+    max_blocks = gpu_prop.maxGridSize[0];
+    sm = gpu_prop.multiProcessorCount;
+
+    num_threads = *warp * 8;
+    num_blocks = vertex / num_threads;
+    if((vertex % num_threads) > 0) num_blocks++;
+    if(num_blocks < max_blocks && num_blocks / sm > 2) {
+        *blocks = num_blocks;
+        *threads = num_threads;
+        return;
+    }
+    while (num_blocks > max_blocks && num_threads < max_threads) {
+        // aumento i thread
+        num_threads += *warp;
+        num_blocks = vertex / num_threads;
+        if((vertex % num_threads) > 0) num_blocks++;
+        if(num_blocks < max_blocks && num_blocks / sm > 2) {
+            *blocks = num_blocks;
+            *threads = num_threads;
+            return;
+        }
+    }
+    while (num_blocks / sm < 2 && num_threads > *warp) {
+        // diminuisco i thread
+        num_threads -= *warp;
+        num_blocks = vertex / num_threads;
+        if((vertex % num_threads) > 0) num_blocks++;
+        if(num_blocks < max_blocks && num_blocks / sm > 2) {
+            *blocks = num_blocks;
+            *threads = num_threads;
+            return;
+        }
+    }
+
+    num_blocks = vertex / num_threads;
+    if((vertex % num_threads) > 0) num_blocks++;
+    *blocks = num_blocks;
+    *threads = num_threads;
 }
