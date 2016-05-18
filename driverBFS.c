@@ -52,7 +52,7 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
 int validate_bfs(UL *edges, UL nedges, UL nvertices, UL root, UL *distances);
 
 // parallel version of traverse
-UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed);
+UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed, int thread);
 
 // Wrong versions to check the validate function
 UL *do_bfs_wrong(UL source, csrdata *csrg, int wrong);
@@ -100,6 +100,7 @@ int main(int argc, char **argv)
     int errflg, gengraph, validate;
     char *fgraph_name;
     int isvalid;
+    int thread;
 
     // Vars for timing
     struct timeval begin, end;
@@ -116,6 +117,7 @@ int main(int argc, char **argv)
     randsource = 1;
     validate   = 0;
     isvalid    = 0;
+    thread     = -1;
 
     fgraph_name      = NULL;
     edges            = NULL;
@@ -126,7 +128,7 @@ int main(int argc, char **argv)
         Usage(argv[0]);
     }
 
-    while ((opt = getopt (argc, argv, "S:E:1:2:f:g:s:hV:")) != EOF){
+    while ((opt = getopt (argc, argv, "S:E:1:2:f:g:s:hV:T:")) != EOF){
             switch (opt)
             {
             case 'S':
@@ -166,6 +168,9 @@ int main(int argc, char **argv)
             case '?':
                     fprintf(stderr, "Unrecognized option: -%c\n", optopt);
                     errflg++;
+                    break;
+            case 'T':
+                    thread = atoi(optarg);
                     break;
             default:
                     Usage(argv[0]);
@@ -256,7 +261,7 @@ int main(int argc, char **argv)
         // YOUR GRAPH TRAVERSAL GOES HERE AND MUST RETURN THE ARRAY: UL *distances
         //////////////////////////////////////////////////////////////////////////
         //distances = traverse_wrong(edges, nedges, nvertices, root, 0, 0);
-        distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0);
+        distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0, thread);
         //////////////////////////////////////////////////////////////////////////
 
         isvalid = validate_bfs(edges, nedges, nvertices, root, distances);

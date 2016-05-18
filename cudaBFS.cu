@@ -10,10 +10,10 @@ __global__ void kernel_set_frontier(gpudata data, csrdata csrg) {
 
     *(data.redo) = 0;
     warp_id = blockIdx.x * warps_block + threadIdx.x / warp_size;
-	increment = (gridDim.x * blockDim.x)/warp_size;
+    increment = (gridDim.x * blockDim.x)/warp_size;
 
-	for(i = warp_id; i < csrg.nv; i+= increment) {
-	    if (data.queue[i]) {
+    for(i = warp_id; i < csrg.nv; i+= increment) {
+        if (data.queue[i]) {
 
             data.queue[i] = 0;
             s = csrg.offsets[i];
@@ -39,7 +39,7 @@ __global__ void kernel_compute_distance(gpudata data) {
             *(data.redo) = 1;
             data.frontier[tid] = 0;
             prev_level = data.dist[tid];
-			dist = data.level + 1;
+            dist = data.level + 1;
             data.dist[tid] = (dist < prev_level) ? dist : prev_level;
             data.queue[tid] = (prev_level == ULONG_MAX);
         }
@@ -47,7 +47,7 @@ __global__ void kernel_compute_distance(gpudata data) {
     }
 }
 
-UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cudatime)
+UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cudatime, int thread)
 {
     int num_threads, num_blocks, i;
 
@@ -61,7 +61,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     gpudata dev;
 
     // Leggo le proprietà del device per ottimizzare la bfs
-    set_threads_and_blocks(&num_threads, &num_blocks, &(dev.warp_size), csrgraph->nv);
+    set_threads_and_blocks(&num_threads, &num_blocks, &(dev.warp_size), csrgraph->nv, thread);
     printf("\nNumber of threads: %d,\tNumber of blocks: %d\n", num_threads, num_blocks);
 
     // Inizializzo i dati
@@ -101,53 +101,53 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     return host.dist;
 }
 
-UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed)
+UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed, int thread)
 {
-  csrdata csrgraph, csrgraph_gpu;     // csr data structure to represent the graph
-	FILE *fout;
-	UL i;
-	UL *dist;             // array of distances from the source
+    csrdata csrgraph, csrgraph_gpu;     // csr data structure to represent the graph
+    FILE *fout;
+    UL i;
+    UL *dist;             // array of distances from the source
 
-	// Vars for timing
-	struct timeval begin, end;
-	double cudatime = 0.0, csrtime;
-	int timer = 1;
+    // Vars for timing
+    struct timeval begin, end;
+    double cudatime = 0.0, csrtime;
+    int timer = 1;
 
-	csrgraph.offsets = NULL;
-	csrgraph.rows    = NULL;
-	csrgraph.deg     = NULL;
+    csrgraph.offsets = NULL;
+    csrgraph.rows    = NULL;
+    csrgraph.deg     = NULL;
 
-	// Build the CSR data structure
-	START_TIMER(begin)
-	csrgraph.offsets = (UL *)Malloc((nvertices+1)*sizeof(UL));
-	csrgraph.rows    = (UL *)Malloc(nedges       *sizeof(UL));
-	csrgraph.deg     = (UL *)Malloc(nvertices    *sizeof(UL));
+    // Build the CSR data structure
+    START_TIMER(begin)
+    csrgraph.offsets = (UL *)Malloc((nvertices+1)*sizeof(UL));
+    csrgraph.rows    = (UL *)Malloc(nedges       *sizeof(UL));
+    csrgraph.deg     = (UL *)Malloc(nvertices    *sizeof(UL));
 
-	build_csr(edges, nedges, nvertices, &csrgraph);
-  copy_csr_on_gpu(&csrgraph, &csrgraph_gpu);
-	END_TIMER(end);
-	ELAPSED_TIME(csrtime, begin, end)
+    build_csr(edges, nedges, nvertices, &csrgraph);
+    copy_csr_on_gpu(&csrgraph, &csrgraph_gpu);
+    END_TIMER(end);
+    ELAPSED_TIME(csrtime, begin, end)
 
-  if (randsource) {
-		root = random_source(&csrgraph, seed);
-		fprintf(stdout, "Random source vertex %lu\n", root);
-	}
+    if (randsource) {
+        root = random_source(&csrgraph, seed);
+        fprintf(stdout, "Random source vertex %lu\n", root);
+    }
 
-  dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime);
+    dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime, thread);
 
-	// Print distance array to file
-	fout = Fopen(DISTANCE_OUT_FILE, "w+");
-	for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-	fclose(fout);
+    // Print distance array to file
+    fout = Fopen(DISTANCE_OUT_FILE, "w+");
+    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
+    fclose(fout);
 
-	// Timing output
+    // Timing output
     fprintf(stdout, "\n");
-	fprintf(stdout, "Cuda build csr and copy time = \t%.5f\n", csrtime);
-	fprintf(stdout, "Cuda alloc data and bfs time = \t%.5f\n", cudatime);
-	fprintf(stdout, "\n");
+    fprintf(stdout, "Cuda build csr and copy time = \t%.5f\n", csrtime);
+    fprintf(stdout, "Cuda alloc data and bfs time = \t%.5f\n", cudatime);
+    fprintf(stdout, "\n");
 
-	if(csrgraph.offsets) free(csrgraph.offsets);
-	if(csrgraph.rows)    free(csrgraph.rows);
+    if(csrgraph.offsets) free(csrgraph.offsets);
+    if(csrgraph.rows)    free(csrgraph.rows);
 
-	return dist;
+    return dist;
 }

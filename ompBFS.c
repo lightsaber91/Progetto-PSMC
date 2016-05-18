@@ -1,9 +1,14 @@
 #include "driverBFS.c"
 #include <omp.h>
 
-UL *do_bfs_omp(UL source, csrdata *csrg) {
+UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {
 
-    printf("Numero Threads: %d\n", omp_get_max_threads());
+    if(thread > 0 && thread < omp_get_max_threads()) {
+        omp_set_num_threads(thread);
+        printf("Numero Threads: %d\n", thread);
+    }
+    else
+        printf("Numero Threads: %d\n", omp_get_max_threads());
 
     UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
     char *visited;
@@ -91,7 +96,7 @@ UL *do_bfs_omp(UL source, csrdata *csrg) {
     return dist;
 }
 
-UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed) {
+UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed, int thread) {
 
     UL *dist;             // array of distances from the source
     csrdata csrgraph;     // csr data structure to represent the graph
@@ -125,7 +130,7 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 
     // Perform a BFS traversal that returns the array of distances from the source
     START_TIMER(begin)
-    dist = do_bfs_omp(root, &csrgraph);
+    dist = do_bfs_omp(root, &csrgraph, thread);
     END_TIMER(end);
     ELAPSED_TIME(bfstime, begin, end)
 

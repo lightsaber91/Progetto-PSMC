@@ -77,7 +77,7 @@ void free_gpu_mem(gpudata *gpu, csrdata *csrgraph) {
     HANDLE_ERROR(cudaFree(csrgraph->rows));
 }
 
-void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex) {
+void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, int chose_thread) {
     int gpu, max_threads, max_blocks, sm, num_blocks, num_threads;
     cudaDeviceProp gpu_prop;
 
@@ -91,14 +91,29 @@ void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex) {
     max_blocks = gpu_prop.maxGridSize[0];
     sm = gpu_prop.multiProcessorCount;
 
+    printf("TxSM %d\n", gpu_prop.maxThreadsPerMultiProcessor);
+
+    if(chose_thread > 0 && chose_thread < max_threads) {
+        num_threads = chose_thread;
+        num_blocks = vertex / num_threads;
+        if((vertex % num_threads) > 0) num_blocks++;
+        if(num_blocks < max_blocks) {
+            *threads = num_threads;
+            *blocks = num_blocks;
+            return;
+        }
+    }
+
     num_threads = *warp * 8;
     num_blocks = vertex / num_threads;
     if((vertex % num_threads) > 0) num_blocks++;
-    if(num_blocks < max_blocks && num_blocks / sm > 2) {
+
+    if((num_blocks < max_blocks && chose_thread == 0) || (num_blocks < max_blocks && num_blocks / sm > 2)) {
         *blocks = num_blocks;
         *threads = num_threads;
         return;
     }
+
     while (num_blocks > max_blocks && num_threads < max_threads) {
         // aumento i thread
         num_threads += *warp;
