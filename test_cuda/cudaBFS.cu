@@ -47,7 +47,7 @@ __global__ void kernel_compute_distance(gpudata data) {
     }
 }
 
-UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cudatime, int thread, int counter)
+UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cudatime, int thread)
 {
     int num_threads, num_blocks, i;
 
@@ -62,7 +62,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
 
     // Leggo le proprietà del device per ottimizzare la bfs
     set_threads_and_blocks(&num_threads, &num_blocks, &(dev.warp_size), csrgraph->nv, thread);
-    if(counter == 0) printf("\nNumber of threads: %d,\tNumber of blocks: %d\n", num_threads, num_blocks);
+    printf("\nNumber of threads: %d,\tNumber of blocks: %d\n", num_threads, num_blocks);
 
     // Inizializzo i dati
     host.level = 0;
@@ -80,7 +80,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     START_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
     copy_data_on_gpu(&host, &dev);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
-//    printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
+    printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
 
     // Faccio partire il kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
@@ -92,13 +92,12 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
         HANDLE_ERROR(cudaMemcpy(&redo, (&dev)->redo, sizeof(char), cudaMemcpyDeviceToHost));
     }
     bfs_time = STOP_CUDA_TIMER(&exec_start, &exec_stop);
-//    printf("Time spent for cuda bfs: %.5f\n", bfs_time);
+    printf("Time spent for cuda bfs: %.5f\n", bfs_time);
 
     copy_data_on_host(&host, &dev);
     free_gpu_mem(&dev);
-    free(host.queue);
 
-    *cudatime = bfs_time;
+    *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
 }
 
@@ -133,30 +132,24 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
         root = random_source(&csrgraph, seed);
         fprintf(stdout, "Random source vertex %lu\n", root);
     }
-//    while( thread <= 1024) {
-        for(i = 0; i < 10; i++) {
-          printf("%d", i);
-            dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime, thread, i);
-            sleep(5);
-            tottime += cudatime;
-            free(dist);
-        }
-        cudatime = tottime / 10;
+    for(i = 0; i<10; i++) {
+        dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime, thread);
+        if(i<9) free(dist);
+        //tottime += cudatime;
+    }
+    //cudatime = tottime / 10;
     // Print distance array to file
-//    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-//    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-//    fclose(fout);
+    fout = Fopen(DISTANCE_OUT_FILE, "w+");
+    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
+    fclose(fout);
 
     // Timing output
-        fprintf(stdout, "\n");
-        fprintf(stdout, "Cuda build csr and copy time = \t%.5f\n", csrtime);
-        fprintf(stdout, "Cuda alloc data and bfs time = \t%.5f\n", cudatime);
-        fprintf(stdout, "\n");
-//        if(thread == -1) thread = 32;
-//        else thread *= 2;
-//    }
-    free_csrgraph_dev(&csrgraph_gpu);
+    fprintf(stdout, "\n");
+    fprintf(stdout, "Cuda build csr and copy time = \t%.5f\n", csrtime);
+    fprintf(stdout, "Cuda alloc data and bfs time = \t%.5f\n", cudatime);
+    fprintf(stdout, "\n");
 
+    free_gpu_csr(&csrgraph_gpu);
     if(csrgraph.offsets) free(csrgraph.offsets);
     if(csrgraph.rows)    free(csrgraph.rows);
 

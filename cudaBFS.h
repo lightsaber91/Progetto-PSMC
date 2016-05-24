@@ -69,10 +69,13 @@ void copy_data_on_host(gpudata *host, gpudata *gpu) {
     HANDLE_ERROR(cudaMemcpy(host->dist, gpu->dist, (host->vertex) * sizeof(UL),cudaMemcpyDeviceToHost));
 }
 
-void free_gpu_mem(gpudata *gpu, csrdata *csrgraph) {
+void free_gpu_mem(gpudata *gpu) {
     HANDLE_ERROR(cudaFree(gpu->queue));
     HANDLE_ERROR(cudaFree(gpu->frontier));
     HANDLE_ERROR(cudaFree(gpu->dist));
+}
+
+void free_gpu_csr(csrdata *csrgraph) {
     HANDLE_ERROR(cudaFree(csrgraph->offsets));
     HANDLE_ERROR(cudaFree(csrgraph->rows));
 }
@@ -90,9 +93,7 @@ void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, in
     max_threads = gpu_prop.maxThreadsPerBlock;
     max_blocks = gpu_prop.maxGridSize[0];
     sm = gpu_prop.multiProcessorCount;
-
-    printf("TxSM %d\n", gpu_prop.maxThreadsPerMultiProcessor);
-
+    
     if(chose_thread > 0 && chose_thread < max_threads) {
         num_threads = chose_thread;
         num_blocks = vertex / num_threads;

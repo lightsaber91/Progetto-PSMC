@@ -95,7 +95,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     printf("Time spent for cuda bfs: %.5f\n", bfs_time);
 
     copy_data_on_host(&host, &dev);
-    free_gpu_mem(&dev, csrgraph_gpu);
+    free_gpu_mem(&dev);
 
     *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
@@ -132,9 +132,10 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
         root = random_source(&csrgraph, seed);
         fprintf(stdout, "Random source vertex %lu\n", root);
     }
-
+    for(i = 0; i<10; i++) {
     dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime, thread);
-
+    if(i<9) free(dist);
+    }
     // Print distance array to file
     fout = Fopen(DISTANCE_OUT_FILE, "w+");
     for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
@@ -146,6 +147,7 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
     fprintf(stdout, "Cuda alloc data and bfs time = \t%.5f\n", cudatime);
     fprintf(stdout, "\n");
 
+    free_gpu_csr(&csrgraph_gpu);
     if(csrgraph.offsets) free(csrgraph.offsets);
     if(csrgraph.rows)    free(csrgraph.rows);
 

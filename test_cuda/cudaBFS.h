@@ -75,9 +75,9 @@ void free_gpu_mem(gpudata *gpu) {
     HANDLE_ERROR(cudaFree(gpu->dist));
 }
 
-void free_csrgraph_dev(csrdata *csrgraph) {
-  HANDLE_ERROR(cudaFree(csrgraph->offsets));
-  HANDLE_ERROR(cudaFree(csrgraph->rows));
+void free_gpu_csr(csrdata *csrgraph) {
+    HANDLE_ERROR(cudaFree(csrgraph->offsets));
+    HANDLE_ERROR(cudaFree(csrgraph->rows));
 }
 
 void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, int chose_thread) {
@@ -94,11 +94,11 @@ void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, in
     max_blocks = gpu_prop.maxGridSize[0];
     sm = gpu_prop.multiProcessorCount;
 
-    if(chose_thread > 0 && chose_thread <= max_threads) {
+    if(chose_thread > 0 && chose_thread < max_threads) {
         num_threads = chose_thread;
         num_blocks = vertex / num_threads;
         if((vertex % num_threads) > 0) num_blocks++;
-        if(num_blocks <= max_blocks) {
+        if(num_blocks < max_blocks) {
             *threads = num_threads;
             *blocks = num_blocks;
             return;
@@ -109,18 +109,18 @@ void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, in
     num_blocks = vertex / num_threads;
     if((vertex % num_threads) > 0) num_blocks++;
 
-    if((num_blocks <= max_blocks && chose_thread == 0) || (num_blocks <= max_blocks && num_blocks / sm > 2)) {
+    if((num_blocks < max_blocks && chose_thread == 0) || (num_blocks < max_blocks && num_blocks / sm > 2)) {
         *blocks = num_blocks;
         *threads = num_threads;
         return;
     }
 
-    while (num_blocks > max_blocks && num_threads <= max_threads) {
+    while (num_blocks > max_blocks && num_threads < max_threads) {
         // aumento i thread
         num_threads += *warp;
         num_blocks = vertex / num_threads;
         if((vertex % num_threads) > 0) num_blocks++;
-        if(num_blocks <= max_blocks && num_blocks / sm > 2) {
+        if(num_blocks < max_blocks && num_blocks / sm > 2) {
             *blocks = num_blocks;
             *threads = num_threads;
             return;
@@ -131,7 +131,7 @@ void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, in
         num_threads -= *warp;
         num_blocks = vertex / num_threads;
         if((vertex % num_threads) > 0) num_blocks++;
-        if(num_blocks <= max_blocks && num_blocks / sm > 2) {
+        if(num_blocks < max_blocks && num_blocks / sm > 2) {
             *blocks = num_blocks;
             *threads = num_threads;
             return;
