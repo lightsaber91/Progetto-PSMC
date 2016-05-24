@@ -52,7 +52,7 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
 int validate_bfs(UL *edges, UL nedges, UL nvertices, UL root, UL *distances);
 
 // parallel version of traverse
-UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed);
+UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed, int thread);
 
 // Wrong versions to check the validate function
 UL *do_bfs_wrong(UL source, csrdata *csrg, int wrong);
@@ -100,6 +100,7 @@ int main(int argc, char **argv)
     int errflg, gengraph, validate;
     char *fgraph_name;
     int isvalid;
+    int thread;
 
     // Vars for timing
     struct timeval begin, end;
@@ -116,6 +117,7 @@ int main(int argc, char **argv)
     randsource = 1;
     validate   = 0;
     isvalid    = 0;
+    thread     = -1;
 
     fgraph_name      = NULL;
     edges            = NULL;
@@ -126,7 +128,7 @@ int main(int argc, char **argv)
         Usage(argv[0]);
     }
 
-    while ((opt = getopt (argc, argv, "S:E:1:2:f:g:s:hV:")) != EOF){
+    while ((opt = getopt (argc, argv, "S:E:1:2:f:g:s:hV:T:")) != EOF){
             switch (opt)
             {
             case 'S':
@@ -166,6 +168,9 @@ int main(int argc, char **argv)
             case '?':
                     fprintf(stderr, "Unrecognized option: -%c\n", optopt);
                     errflg++;
+                    break;
+            case 'T':
+                    thread = atoi(optarg);
                     break;
             default:
                     Usage(argv[0]);
@@ -231,8 +236,8 @@ int main(int argc, char **argv)
     l = norm_graph(edges, nedges);
     END_TIMER(end);
     ELAPSED_TIME(cleantime, begin, end)
-//    fprintf(stdout, "The number of edges in the undirected graph is %lu\n", nedges);
-//    fprintf(stdout, "Removed %lu edges\n", nedges-l);
+    fprintf(stderr, "The number of edges in the undirected graph is %lu\n", nedges);
+    fprintf(stderr, "Removed %lu edges\n", nedges-l);
     nedges = l;
 
     //Degree distribution statistics
@@ -240,13 +245,13 @@ int main(int argc, char **argv)
     //compute_dd(edges, nedges, nvertices);
     END_TIMER(end);
     ELAPSED_TIME(statstime, begin, end)
-    if(gentime && statstime && cleantime);
+
     // Print timing
-//    fprintf(stdout, "\n");
-//    fprintf(stdout, "generation time = \t%.5f\n", gentime);
-//    fprintf(stdout, "undirected time = \t%.5f\n", cleantime);
-//    fprintf(stdout, "do statis  time = \t%.5f\n", statstime);
-//    fprintf(stdout, "\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "generation time = \t%.5f\n", gentime);
+    fprintf(stderr, "undirected time = \t%.5f\n", cleantime);
+    fprintf(stderr, "do statis  time = \t%.5f\n", statstime);
+    fprintf(stderr, "\n");
 
 
     UL *distances = NULL;
@@ -256,7 +261,7 @@ int main(int argc, char **argv)
         // YOUR GRAPH TRAVERSAL GOES HERE AND MUST RETURN THE ARRAY: UL *distances
         //////////////////////////////////////////////////////////////////////////
         //distances = traverse_wrong(edges, nedges, nvertices, root, 0, 0);
-        distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0);
+        distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0, thread);
         //////////////////////////////////////////////////////////////////////////
 
         isvalid = validate_bfs(edges, nedges, nvertices, root, distances);
@@ -286,7 +291,7 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
     int *visited;
     UL *dist;
 
-//    fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrg->nv, csrg->ne, source);
+    fprintf(stderr, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrg->nv, csrg->ne, source);
     // if(csrg->nv < 50) print_csr(csrg);
 
     if (csrg->deg[source] == 0) {
@@ -323,7 +328,7 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
 
     // traverse the graph
     while (1) {
-//        fprintf(stdout, "\tExploring level %lu, elements in queue = %lu\n", d, nq1);
+        fprintf(stderr, "\tExploring level %lu, elements in queue = %lu\n", d, nq1);
         for (i = 0; i < nq1; i++) {
             // dequeue U
             U = q1[i];
@@ -342,20 +347,20 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
                 }
             }
         }
-
-//        fprintf(stdout, "\tExploring level %lu,    the next queue = %lu\n", d, nq2);
-//        if(csrg->nv < 50) {
-//        fprintf(stdout, "\tcurrent queue:\t");
-//        for (i = 0; i < nq1; i++) fprintf(stdout, "%lu ", q1[i]);
-//        fprintf(stdout, "\n");
-//        fprintf(stdout, "\tvisited:\t");
-//        for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
-//        fprintf(stdout, "\n");
-//        fprintf(stdout, "\tnext queue:\t");
-//        for (i = 0; i < nq2; i++) fprintf(stdout, "%lu ", q2[i]);
-//        fprintf(stdout, "\n");
-//        }
-        if (nq2 == 0) break;
+/*
+        fprintf(stderr, "\tExploring level %lu,    the next queue = %lu\n", d, nq2);
+        if(csrg->nv < 50) {
+        fprintf(stderr, "\tcurrent queue:\t");
+        for (i = 0; i < nq1; i++) fprintf(stdout, "%lu ", q1[i]);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "\tvisited:\t");
+        for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "\tnext queue:\t");
+        for (i = 0; i < nq2; i++) fprintf(stdout, "%lu ", q2[i]);
+        fprintf(stdout, "\n");
+        }
+*/        if (nq2 == 0) break;
 
         nq1   = nq2;
         nq2   = 0;
@@ -369,8 +374,8 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
             exit(EXIT_FAILURE);
         }
     }
-/*
-    fprintf(stdout, "Finished BFS, visited %lu nodes\n", nvisited);
+
+    fprintf(stderr, "Finished BFS, visited %lu nodes\n", nvisited);
     UL count = 0;
     for (i = 0; i < csrg->nv; i++) {
         if (visited[i] == 1)
@@ -379,8 +384,8 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
     if (nvisited != count) {
         fprintf(stderr, "\nBFS is wrong! nvisited = %lu != count = %lu.\nExit.\n\n", nvisited, count);
     }
-*/
-//    fprintf(stdout, "\n");
+
+    fprintf(stdout, "\n");
 
     return dist;
 }
@@ -442,7 +447,7 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
 
     if (randsource) {
         root = random_source(&csrgraph, seed);
-        fprintf(stdout, "Random source vertex %lu\n", root);
+        fprintf(stderr, "Random source vertex %lu\n", root);
     }
 
     // Perform a BFS traversal that returns the array of distances from the source
@@ -531,12 +536,12 @@ UL *gen_graph(UL n, UL nedges, unsigned seed) {
 
     // Memory allocation for edgelist
     edgelist = (UL *)Malloc(2*nedges*sizeof(UL));
-/*
-    fprintf(stdout, "\nGraph generation:\n");
-    fprintf(stdout, "\tgraph type = GENERATING SIMPLE RANDOM\n");
-    fprintf(stdout, "\tvertices   = %lu\n", n);
-    fprintf(stdout, "\tedges      = %lu\n", nedges);
-*/
+
+    fprintf(stderr, "\nGraph generation:\n");
+    fprintf(stderr, "\tgraph type = GENERATING SIMPLE RANDOM\n");
+    fprintf(stderr, "\tvertices   = %lu\n", n);
+    fprintf(stderr, "\tedges      = %lu\n", nedges);
+
     // Init random
     srandom(seed);
 
@@ -560,15 +565,14 @@ UL  *gen_rmat(UL ned, int scale, float a, float ab, float abc, int seed)
 
     srand48(seed);
     n = 1 << scale;
-    if(n);
     // Memory allocation for edgelist
     ed = (UL *)Malloc(2*ned*sizeof(UL));
-/*
-    fprintf(stdout, "\nGraph generation:\n");
-    fprintf(stdout, "\tgraph type = GENERATING RMAT GRAPH\n");
-    fprintf(stdout, "\tvertices   = %lu\n", n);
-    fprintf(stdout, "\tedges      = %lu\n", ned);
-*/
+
+    fprintf(stderr, "\nGraph generation:\n");
+    fprintf(stderr, "\tgraph type = GENERATING RMAT GRAPH\n");
+    fprintf(stderr, "\tvertices   = %lu\n", n);
+    fprintf(stderr, "\tedges      = %lu\n", ned);
+
     for (i = 0; i < ned; i++) {
         x = 0; y = 0;
         for(s = (1<<(scale-1)); s > 0; s >>= 1) {
@@ -933,7 +937,7 @@ UL norm_graph(UL *ed, UL ned) {
                 //printf("removing (%lu,%lu) , (%lu,%lu)\n", ed[2*(n-1)], ed[2*(n-1)+1], ed[2*n], ed[2*n+1]);
             }
     }
-//    fprintf(stdout, "\tEdges after removing = %lu\n", l);
+    fprintf(stderr, "\tEdges after removing = %lu\n", l);
 
     return l;
 }
