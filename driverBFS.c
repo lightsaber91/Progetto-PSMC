@@ -119,6 +119,8 @@ int main(int argc, char **argv)
     isvalid    = 0;
     thread     = -1;
 
+    if(randsource){};
+
     fgraph_name      = NULL;
     edges            = NULL;
 
@@ -270,9 +272,8 @@ int main(int argc, char **argv)
     }
 
     if (validate == 0) {
-        distances = traverse(edges, nedges, nvertices, root, randsource, seed2);
+        distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0, thread);
     }
-
 
     if(distances)        free(distances);
     if(edges)            free(edges);
@@ -422,8 +423,6 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
 
     UL *dist;             // array of distances from the source
     csrdata csrgraph;     // csr data structure to represent the graph
-    FILE *fout;
-    UL i;
 
     // Vars for timing
     struct timeval begin, end;
@@ -455,11 +454,6 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
     dist = do_bfs_serial(root, &csrgraph);
     END_TIMER(end);
     ELAPSED_TIME(bfstime, begin, end)
-
-    // Print distance array to file
-    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-    fclose(fout);
 
     // Timing output
     fprintf(stdout, "\n");
@@ -583,146 +577,10 @@ UL  *gen_rmat(UL ned, int scale, float a, float ab, float abc, int seed)
 
     return ed;
 }
-/*
-// Degree distribution
-int compute_dd(UL *edgelist, UL nedges, UL nv)
-{
-    UL       *deg;         // array of degrees
-    UL       Vi, Vj;       // edge ends
-    float    bin;          // bin size
-    int      nbin;         // number of bin
-    UL       *count;       // array that stores the distribution
-    int      id;           // index of count
-    UL       i, totcount;
 
-    deg = (UL *)malloc(2*nv*sizeof(UL));
-    if (NULL == deg) {
-        fprintf(stderr, "Error malloc deg. Exit.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Compute in degree and out degree
-    for (i = 0; i < nedges; i++) {
-        Vi = edgelist[2*i];
-        Vj = edgelist[2*i+1];
-        deg[2*Vi]   += 1;
-        deg[2*Vj+1] += 1;
-    }
-    //for(i = 0; i < nv; i++) fprintf(stdout, "out-deg[%lu] = %lu\n", i, deg[2*i]);
-
-    // Compute the Degree distribution
-    nbin = (NBIN > nv) ? nv : NBIN;
-    bin  = (float)nv/nbin;
-
-    count = (UL *)malloc(nbin*sizeof(UL));
-    if (NULL == count) {
-        fprintf(stderr, "Erro malloc count! Exit.\n");
-        exit(EXIT_FAILURE);
-    }
-    memset(count, 0, nbin*sizeof(UL));
-
-    for (i = 0; i < nv; i++) {
-        id = i/bin;
-        count[id] += deg[2*i];
-    }
-    totcount = 0;
-    for (i = 0; i < nbin; i++) {
-        totcount += count[i];
-    }
-    if (totcount != nedges) {
-        fprintf(stderr, "%s: totcount1 = %lu != nedges = %lu\n", __func__, totcount, nedges);
-        exit(EXIT_FAILURE);
-    }
-
-    // Print the degree distribution
-    fprintf(stdout, "\nDegree distribution:\n");
-    fprintf(stdout, "\tnum vertices = %lu\n",  nv);
-    fprintf(stdout, "\tnum edges    = %lu\n",  nedges);
-    fprintf(stdout, "\tbin size     = %.2f\n",  bin);
-    fprintf(stdout, "\tnum of bins  = %d\n", nbin);
-    fprintf(stdout, "\n\t[label interval] [degree]\n");
-    for (i = 0; i < nbin; i++) fprintf(stdout, "\t[%lu - %lu] = %lu\n", (UL)(i*bin), (UL)((i+1)*bin), count[i]); fflush(stdout);
-
-    // Max out/in-going degree, zero/one-degree vertices
-    UL maxind, maxoutd, maxd;
-    UL zeroind, zerooutd;
-    UL oneind, oneoutd;
-    maxind  = maxoutd  = 0;
-    zeroind = zerooutd = 0;
-    oneind  = oneoutd  = 0;
-    for(i = 0; i < nv; i++) {
-        if(deg[2*i]   > maxoutd) maxoutd  = deg[2*i];
-        if(deg[2*i+1] > maxind)  maxind   = deg[2*i+1];
-        if(deg[2*i]   == 0)      zerooutd += 1;
-        if(deg[2*i+1] == 0)      zeroind  += 1;
-        if(deg[2*i]   == 1)      oneoutd  += 1;
-        if(deg[2*i+1] == 1)      oneind   += 1;
-    }
-    maxd = (maxind > maxoutd) ? maxind : maxoutd;
-
-    // Count how many nodes has a certain value of out-degree
-    UL minnbin = maxoutd + 1;
-    nbin = (NBIN > minnbin) ? minnbin : NBIN;
-    bin  = (float)minnbin/nbin;
-
-    UL *newcount;
-    newcount = (UL *)malloc(nbin*sizeof(UL));
-    if (NULL == newcount) {
-        fprintf(stderr, "Erro malloc count! Exit.\n");
-        exit(EXIT_FAILURE);
-    }
-    memset(newcount, 0, nbin*sizeof(UL));
-
-    for (i = 0; i < nv; i++) {
-        id = deg[2*i]/bin;
-        newcount[id] += 1;
-    }
-    totcount = 0;
-    for (i = 0; i < nbin; i++) {
-        totcount += newcount[i];
-    }
-
-    fprintf(stdout, "\nNode-Degree distribution:\n");
-    fprintf(stdout, "\tnum vertices = %lu\n",  nv);
-    fprintf(stdout, "\tnum edges    = %lu\n",  nedges);
-    fprintf(stdout, "\tbin size     = %.2f\n", bin);
-    fprintf(stdout, "\tnum of bins  = %d\n",   nbin);
-    fprintf(stdout, "\tmax in-deg   = %lu\n",  maxind);
-    fprintf(stdout, "\tmax out-eg   = %lu\n",  maxoutd);
-    fprintf(stdout, "\tzero in-deg  = %lu\n",  zeroind);
-    fprintf(stdout, "\tzero out-deg = %lu\n",  zerooutd);
-    fprintf(stdout, "\tone in-deg   = %lu\n",  oneind);
-    fprintf(stdout, "\tone out-deg  = %lu\n",  oneoutd);
-    fprintf(stdout, "\n\t[degree interval] [nodes]\n");
-    for (i = 0; i < nbin; i++) fprintf(stdout, "\t[%lu - %lu] = [%lu]\n", (UL)(i*bin), (UL)((i+1)*bin), newcount[i]); fflush(stdout);
-    if (totcount != nv) {
-        fprintf(stderr, "%s: totcount2 = %lu != nedges = %lu\n", __func__, totcount, nv);
-        exit(EXIT_FAILURE);
-    }
-
-    if(deg)      free(deg);
-    if(count)    free(count);
-    if(newcount) free(newcount);
-
-    return 0;
-}
-*/
-/*
-    Read a directed graph from file
-    File format:
-    #
-    # Any number of lines starting with #
-    #
-    # Nodes: 12345 Edges: 123456
-    #
-    # Any number of lines starting with #
-    #
-    V0  V1
-    V2  V3
-    ...
-*/
 #define BUFFSIZE     1024
 #define ALLOC_BLOCK (2*1024)
+
 int read_graph_ff(char *fname, UL **edges, UL *nedges, UL *nvertices)
 {
     FILE *fp;
@@ -999,137 +857,3 @@ int Usage (char *str) {
 
     return 0;
 }
-/*
-UL *traverse_wrong(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed) {
-
-    UL *dist;             // array of distances from the source
-    csrdata csrgraph;     // csr data structure to represent the graph
-    FILE *fout;
-    UL i;
-
-    // Vars for timing
-    struct timeval begin, end;
-    double bfstime, csrtime;
-    int timer = 1;
-
-    csrgraph.offsets = NULL;
-    csrgraph.rows    = NULL;
-    csrgraph.deg     = NULL;
-
-    // Build the CSR data structure
-    START_TIMER(begin)
-    csrgraph.offsets = (UL *)Malloc((nvertices+1)*sizeof(UL));
-    csrgraph.rows    = (UL *)Malloc(nedges       *sizeof(UL));
-    csrgraph.deg     = (UL *)Malloc(nvertices    *sizeof(UL));
-
-    build_csr(edges, nedges, nvertices, &csrgraph);
-    END_TIMER(end);
-    ELAPSED_TIME(csrtime, begin, end)
-
-    if (randsource) {
-        root = random_source(&csrgraph, seed);
-        fprintf(stdout, "Random source vertex %lu\n", root);
-    }
-
-    // Perform a BFS traversal that returns the array of distances from the source
-    START_TIMER(begin)
-    dist = do_bfs_wrong(root, &csrgraph, 0); // if wrong != 0 who knows?
-    END_TIMER(end);
-    ELAPSED_TIME(bfstime, begin, end)
-
-    // Print distance array to file
-    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-    fclose(fout);
-
-    // Timing output
-    fprintf(stdout, "\n");
-    fprintf(stdout, "build csr  time = \t%.5f\n", csrtime);
-    fprintf(stdout, "do BFS     time = \t%.5f\n", bfstime);
-    fprintf(stdout, "\n");
-
-    if(csrgraph.offsets) free(csrgraph.offsets);
-    if(csrgraph.rows)    free(csrgraph.rows);
-
-    return dist;
-}
-
-UL *do_bfs_wrong(UL source, csrdata *csrg, int wrong)
-{
-    UL *q1, nq1;
-    UL *q2, nq2;
-    UL *qswap;
-    UL nvisited;
-    UL i, j, s, e, U, V, d;
-    int *visited;
-    UL *dist;
-
-    q1      = NULL;
-    q2      = NULL;
-    visited = NULL;
-    dist    = NULL;
-
-    nq1      = 0;
-    nq2      = 0;
-    d        = 0;
-    nvisited = 0;
-
-    dist      =  (UL *)Malloc(csrg->nv*sizeof(UL));
-    q1        =  (UL *)Malloc(csrg->ne*sizeof(UL));
-    q2        =  (UL *)Malloc(csrg->ne*sizeof(UL));
-    visited   = (int *)Malloc(csrg->nv*sizeof(int));
-
-    memset(visited, 0, csrg->nv*sizeof(int));
-    for (i = 0; i < csrg->nv; i++) dist[i] = ULONG_MAX;
-
-    // enqueue the source
-    q1[0]        = source;
-    nq1          = 1;
-    dist[source] = 0;
-
-    // traverse the graph
-    while (1) {
-        for (i = 0; i < nq1; i++) {
-            // dequeue U
-            U = q1[i];
-            // set as visited
-            visited[U]  = 1;
-            nvisited   += 1;
-            // Search all neighbors of U
-            s = csrg->offsets[U]; e = csrg->offsets[U+1];
-            for (j = s; j < e; j++) {
-                V = csrg->rows[j];
-                // If V is not visited enqueue it
-                if ((visited[V] != 1) && (dist[V] == ULONG_MAX)) {
-                    if (nq2 > (csrg->ne - 1)) {fprintf(stderr, "Queue overflow error!\nExit!\n");exit(EXIT_FAILURE);}
-                    q2[nq2++] = V;
-                    dist[V]   = d + 1;
-                }
-            }
-        }
-
-        if (nq2 == 0) break;
-
-        // WRONGNESS ////////////
-        if (d == wrong) q2[nq2-1] = 0;
-        /////////////////////////
-        nq1   = nq2;
-        nq2   = 0;
-        qswap = q1;
-        q1    = q2;
-        q2    = qswap;
-        d    += 1;
-
-        if(d > csrg->nv) {
-            fprintf(stderr, "\nError: distance overflow!Exit\n\n");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    free(q1);
-    free(q2);
-    free(visited);
-
-    return dist;
-}
-*/

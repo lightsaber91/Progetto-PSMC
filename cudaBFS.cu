@@ -97,6 +97,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     copy_data_on_host(&host, &dev);
     free_gpu_mem(&dev);
 
+    free(host.queue);
     *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
 }
@@ -104,9 +105,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
 UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int seed, int thread)
 {
     csrdata csrgraph, csrgraph_gpu;     // csr data structure to represent the graph
-    FILE *fout;
-    UL i;
-    UL *dist;             // array of distances from the source
+    UL *dist;                           // array of distances from the source
 
     // Vars for timing
     struct timeval begin, end;
@@ -132,14 +131,7 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
         root = random_source(&csrgraph, seed);
         fprintf(stdout, "Random source vertex %lu\n", root);
     }
-    for(i = 0; i<10; i++) {
     dist = do_bfs_cuda(root, &csrgraph, &csrgraph_gpu, &cudatime, thread);
-    if(i<9) free(dist);
-    }
-    // Print distance array to file
-    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-    fclose(fout);
 
     // Timing output
     fprintf(stdout, "\n");

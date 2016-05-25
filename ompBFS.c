@@ -100,8 +100,6 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
 
     UL *dist;             // array of distances from the source
     csrdata csrgraph;     // csr data structure to represent the graph
-    FILE *fout;
-    UL i;
 
     // Vars for timing
     struct timeval begin, end;
@@ -133,11 +131,6 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
     dist = do_bfs_omp(root, &csrgraph, thread);
     END_TIMER(end);
     ELAPSED_TIME(bfstime, begin, end)
-
-    // Print distance array to file
-    fout = Fopen(DISTANCE_OUT_FILE, "w+");
-    for (i = 0; i < csrgraph.nv; i++) fprintf(fout, "%lu %lu\n", i, dist[i]);
-    fclose(fout);
 
     // Timing output
     fprintf(stdout, "\n");
