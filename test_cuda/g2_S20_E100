@@ -1,0 +1,75 @@
+
+Running CPU BFS:
+	scale              = 20
+	average degree     = 100
+	number of vertices = 1048576
+	number of edges    = 104857600
+	random seed 1      = 1
+	random seed 2      = 2
+	sizeof(vertex)     = 8
+
+Graph generation:
+	graph type = GENERATING RMAT GRAPH
+	vertices   = 1048576
+	edges      = 104857600
+	Mirroring edges -> Graph will be undirected, nedges = 209707889
+	Removing self loop and multi edges
+N egdes 209707889
+
+
+
+	Edges after removing = 174163362
+The number of edges in the undirected graph is 209707889
+Removed 35544527 edges
+
+generation time = 	59.09812
+undirected time = 	110.44148
+do statis  time = 	0.00000
+
+
+Number of threads: 256,	Number of blocks: 4096
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.04124
+
+
+Number of threads: 32,	Number of blocks: 32768
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.04623
+
+
+Number of threads: 64,	Number of blocks: 16384
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.04032
+
+
+Number of threads: 128,	Number of blocks: 8192
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.03906
+
+
+Number of threads: 256,	Number of blocks: 4096
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.04011
+
+
+Number of threads: 512,	Number of blocks: 2048
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.03925
+
+
+Number of threads: 1024,	Number of blocks: 1024
+
+Cuda build csr and copy time = 	31.54097
+Cuda alloc data and bfs time = 	0.04574
+
+
+build csr  time = 	30.19461
+do BFS     time = 	1.15600
+
+Well done!
