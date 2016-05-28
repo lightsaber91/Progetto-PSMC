@@ -3,15 +3,16 @@
 
 UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {
 
+    UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
+    char *visited;
+
+    // Imposto il numero di thread a mano o automaticamente
     if(thread > 0 && thread < omp_get_max_threads()) {
         omp_set_num_threads(thread);
         printf("Numero Threads: %d\n", thread);
     }
     else
         printf("Numero Threads: %d\n", omp_get_max_threads());
-
-    UL *q, ql, qs, i, start, end, *dist, d, U, V, s, e, j;
-    char *visited;
 
     fprintf(stdout, "\nPerforming BFS on a graph with %lu vertices and %lu edges starting from %lu\n", csrg->nv, csrg->ne, source);
     // if(csrg->nv < 50) print_csr(csrg);
@@ -43,6 +44,8 @@ UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {
     dist[source] = d;
     visited[source] = 1;
 
+    // Faccio partire il ciclo per la bfs parallela
+    // finchè c'è qualcosa in coda
     while(ql-qs !=  0) {
         start = qs; end = ql;
         #pragma omp parallel for private(U,V,s,e,j) reduction(+:qs)
@@ -56,13 +59,11 @@ UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {
             for (j = s; j < e; j++) {
                 V = csrg->rows[j];
                 // If V is not visited enqueue it
-                if ((!visited[V]) && dist[V] == ULONG_MAX) {
-                    if ((__sync_lock_test_and_set(&visited[V], 1)) == 0) {
-                        dist[V]   = d + 1;
-                        #pragma omp critical
-                        {
-                            q[ql++] = V;
-                        }
+                if(!__sync_lock_test_and_set(&visited[V], 1) && dist[V] == ULONG_MAX) {
+                    dist[V]   = d + 1;
+                    #pragma omp critical
+                    {
+                        q[ql++] = V;
                     }
                 }
             }
@@ -138,6 +139,7 @@ UL *traverse_parallel(UL *edges, UL nedges, UL nvertices, UL root, int randsourc
     fprintf(stdout, "do BFS OMP time = \t%.5f\n", bfstime);
     fprintf(stdout, "\n");
 
+    // Libero la memoria
     if(csrgraph.offsets) free(csrgraph.offsets);
     if(csrgraph.rows)    free(csrgraph.rows);
 

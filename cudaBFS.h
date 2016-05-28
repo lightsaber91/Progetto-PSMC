@@ -1,4 +1,6 @@
-typedef struct {
+
+// Definisco la struttura dati che mi serviranno sul device
+typedef struct _gpudata{
     char *redo;
     char *queue;
     char *frontier;
@@ -9,6 +11,7 @@ typedef struct {
 } gpudata;
 
 
+// Funzione di controllo per vedere se si va in errore sul device
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 static inline void HandleError( cudaError_t err, const char *file, int line )
 {
@@ -18,13 +21,14 @@ static inline void HandleError( cudaError_t err, const char *file, int line )
     }
 }
 
+// Funzione per far partire il timer
 static inline void START_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 {
 	HANDLE_ERROR(cudaEventCreate(start));
 	HANDLE_ERROR(cudaEventCreate(stop));
 	HANDLE_ERROR(cudaEventRecord(*start, 0));
 }
-
+// Funzione per fermare il timer e calcolare il tempo trascorso
 static inline double STOP_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 {
     float time=0;
@@ -36,7 +40,7 @@ static inline double STOP_CUDA_TIMER(cudaEvent_t *start, cudaEvent_t *stop)
 	return (time/1000.0);
 }
 
-
+// Copio il grafo su device
 inline void copy_csr_on_gpu(const csrdata *csrg, csrdata *csrg_gpu){
     UL nv = csrg->nv;
     UL ne = csrg->ne;
@@ -51,6 +55,7 @@ inline void copy_csr_on_gpu(const csrdata *csrg, csrdata *csrg_gpu){
     csrg_gpu->ne = ne;
 }
 
+// Copio la struttura dati apposita su device
 inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu) {
     gpu->vertex = host->vertex;
 
@@ -65,21 +70,24 @@ inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu) {
     HANDLE_ERROR(cudaMemset(gpu->frontier, 0, host->vertex * sizeof(char)));
 }
 
-void copy_data_on_host(gpudata *host, gpudata *gpu) {
+// Copio i risultati sull'host
+inline void copy_data_on_host(gpudata *host, gpudata *gpu) {
     HANDLE_ERROR(cudaMemcpy(host->dist, gpu->dist, (host->vertex) * sizeof(UL),cudaMemcpyDeviceToHost));
 }
 
-void free_gpu_mem(gpudata *gpu) {
+// Libero la memoria del device
+inline void free_gpu_data(gpudata *gpu) {
     HANDLE_ERROR(cudaFree(gpu->queue));
     HANDLE_ERROR(cudaFree(gpu->frontier));
     HANDLE_ERROR(cudaFree(gpu->dist));
 }
 
-void free_gpu_csr(csrdata *csrgraph) {
+inline void free_gpu_csr(csrdata *csrgraph) {
     HANDLE_ERROR(cudaFree(csrgraph->offsets));
     HANDLE_ERROR(cudaFree(csrgraph->rows));
 }
 
+// Utility per "cercare di" scegliere un numero ottimale di thread e blocchi
 void set_threads_and_blocks(int *threads, int *blocks, int *warp, int vertex, int chose_thread) {
     int gpu, max_threads, max_blocks, sm, num_blocks, num_threads;
     cudaDeviceProp gpu_prop;
