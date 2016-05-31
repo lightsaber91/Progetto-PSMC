@@ -60,11 +60,12 @@ UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {
                 V = csrg->rows[j];
                 // If V is not visited enqueue it
                 if(!visited[V] && dist[V] == ULONG_MAX) {
-                    visited[V] = 1;
-                    dist[V]   = d + 1;
-                    #pragma omp critical
-                    {
-                        q[ql++] = V;
+                    if(__sync_lock_test_and_set(&visited[V], 1) == 0) {
+                        dist[V]   = d + 1;
+                        #pragma omp critical
+                        {
+                            q[ql++] = V;
+                        }
                     }
                 }
             }
