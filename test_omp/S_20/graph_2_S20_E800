@@ -1,0 +1,58 @@
+
+Running CPU BFS:
+	scale              = 20
+	average degree     = 800
+	number of vertices = 1048576
+	number of edges    = 838860800
+	random seed 1      = 1
+	random seed 2      = 2
+	sizeof(vertex)     = 8
+
+Graph generation:
+	graph type = GENERATING RMAT GRAPH
+	vertices   = 1048576
+	edges      = 838860800
+	Mirroring edges -> Graph will be undirected, nedges = 1677662109
+	Removing self loop and multi edges
+N egdes 1677662109
+
+
+
+	Edges after removing = 1055589142
+The number of edges in the undirected graph is 1677662109
+Removed 622072967 edges
+
+generation time = 	491.00391
+undirected time = 	664.99189
+do statis  time = 	0.00000
+
+Numero Threads: 2
+
+build csr  time = 	206.41594
+do BFS OMP time = 	2.67476
+
+Numero Threads: 4
+
+build csr  time = 	206.41594
+do BFS OMP time = 	1.87884
+
+Numero Threads: 8
+
+build csr  time = 	206.41594
+do BFS OMP time = 	1.41405
+
+Numero Threads: 16
+
+build csr  time = 	206.41594
+do BFS OMP time = 	1.17455
+
+Numero Threads: 24
+
+build csr  time = 	206.41594
+do BFS OMP time = 	1.08296
+
+
+build csr  time = 	206.89335
+do BFS     time = 	5.09069
+
+Well done!
