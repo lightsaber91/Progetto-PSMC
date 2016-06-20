@@ -2,7 +2,9 @@
 #include "cuda_queue.h"
 #include "lock.h"
 
-__global__ void kernel_compute_bfs(gpudata data, csrdata csrg, Lock mutex) {
+#define THREAD 256
+
+__global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
     int i, j, warp_id, increment;
     UL U, V, s, e, *node;
     /* Dimensione del warp */
@@ -13,12 +15,12 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg, Lock mutex) {
     warp_id = blockIdx.x * warps_block + threadIdx.x / warp_size;
     /* Incremento da effettuare ogni iterazione del ciclo */
     increment = (gridDim.x * blockDim.x)/warp_size;
-    for(i = warp_id; i < data.nq; i+= increment) {
+    for(i = warp_id; i < *(data.nq); i+= increment) {
         U = data.queue[i];
         data.visited[U] = 1;
 
-        s = csrg.offsets[i];
-        e = csrg.offsets[i+1] - s;
+        s = csrg.offsets[U];
+        e = csrg.offsets[U+1] - s;
         node = &csrg.rows[s];
 
         /* Ora faccio fare il lavoro ad ogni thread */
@@ -26,11 +28,8 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg, Lock mutex) {
             /* Inserisco il nodo vicino nella frontiera */
             V = node[j];
             if ((data.visited[V] != 1) && (data.dist[V] == ULONG_MAX)) {
-                // Lock della risorsa
-                mutex.lock();
-                data.queue2[data.nq2++] = V;
-                // Unlock della risorsa
-                mutex.unlock();
+                data.queue[*(data.nq2)] = V;
+                atomicAdd((unsigned long long int *) data.nq2, (unsigned long long) 1);
                 data.dist[V]   = data.level + 1;
             }
         }
@@ -54,6 +53,10 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     host.queue2 = (UL *) Malloc(csrgraph->nv * sizeof(UL));
     host.dist = (UL *) Malloc(csrgraph->nv * sizeof(UL));
     host.visited = (char *) Malloc(csrgraph->nv * sizeof(char));
+    host.nq = (UL *) Malloc(sizeof(UL));
+    host.nq2 = (UL *) Malloc(sizeof(UL));
+    *(host.nq) = 1;
+    *(host.nq2) = 0;
     memset(host.queue, 0, csrgraph->nv * sizeof(UL));
     memset(host.queue2, 0, csrgraph->nv * sizeof(UL));
     memset(host.visited, 0, csrgraph->nv * sizeof(char));
@@ -62,9 +65,6 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     host.dist[source] = 0;
     host.queue[source] = 1;
     dev.level = host.level = 0;
-    dev.mutex = host.mutex = 0;
-    dev.nq = host.nq = 1;
-    dev.nq2 = host.nq2 = 0;
     dev.warp_size = host.warp_size = get_warp_size();
 
     // Inizio ad allocare memoria e copiare i dati sul device (GPU)
@@ -72,20 +72,23 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     copy_data_on_gpu(&host, &dev, csrgraph->nv);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
     printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
-
     // Faccio partire i kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(1) {
-        set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, dev.nq, thread_per_block);
+        set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, *(host.nq), THREAD);
         // Lancio il kernel che si occupa di mettere nella frontiera i vicini
-        kernel_compute_bfs<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu, mutex);
+        *(host.nq) = 0;
+        kernel_compute_bfs<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
         cudaDeviceSynchronize();
-        // Controllo se devo fare un ulteriore iterazione
-        if(dev.nq2 == 0) {break;}
-        // Inverto le code
-        swap_queue(&dev);
-        dev.nq = dev.nq2;
-        dev.nq2 = 0;
+        // Controllo e inverto le code
+        copy_back_data_and_swap(&host, &dev, csrgraph->nv);
+        printf("\n\tNUM THREADS:= %d", num_threads);
+        printf("\n\tNUM BLOCKS := %d", num_blocks);
+        printf("\n\tNEXT QUEUE := %d\n\n", *(host.nq2));
+
+        if(*(host.nq2) == 0 )
+            break;
+        *(host.nq) = *(host.nq2);
         // Incremento la distanza
         dev.level += 1;
     }

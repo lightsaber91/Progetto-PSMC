@@ -1,13 +1,12 @@
 // Definisco la struttura dati che mi serviranno sul device
 typedef struct _gpudata{
     char *visited;
-    int mutex;
     int warp_size;
     UL *dist;
     UL *queue;
     UL *queue2;
-    UL nq;
-    UL nq2;
+    UL *nq;
+    UL *nq2;
     UL level;
 } gpudata;
 
@@ -63,11 +62,15 @@ inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu, UL vertex) {
     HANDLE_ERROR(cudaMalloc((void**) &gpu->queue2, vertex * sizeof(UL)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->dist, vertex * sizeof(UL)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->visited, vertex * sizeof(char)));
+    HANDLE_ERROR(cudaMalloc((void**) &gpu->nq, sizeof(UL)));
+    HANDLE_ERROR(cudaMalloc((void**) &gpu->nq2, sizeof(UL)));
 
     HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue, vertex * sizeof(UL), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->queue2, host->queue2, vertex * sizeof(UL), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->dist, host->dist, vertex * sizeof(UL), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->visited, host->visited, vertex * sizeof(char), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->nq, host->nq, sizeof(UL), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->nq2, host->nq2, sizeof(UL), cudaMemcpyHostToDevice));
 }
 
 // Copio i risultati sull'host
@@ -88,10 +91,13 @@ inline void free_gpu_csr(csrdata *csrgraph) {
     HANDLE_ERROR(cudaFree(csrgraph->rows));
 }
 
-inline void swap_queue(gpudata *gpu) {
-    UL *tmp_queue = gpu->queue;
-    gpu->queue = gpu->queue2;
-    gpu->queue2 = tmp_queue;
+inline void copy_back_data_and_swap(gpudata *host, gpudata *gpu, UL vertex) {
+    HANDLE_ERROR(cudaMemcpy(host->nq2, gpu->nq2, sizeof(UL), cudaMemcpyDeviceToHost));
+    HANDLE_ERROR(cudaMemcpy(host->queue2, gpu->queue2, vertex * sizeof(UL), cudaMemcpyDeviceToHost));
+
+    HANDLE_ERROR(cudaMemcpy(gpu->nq, host->nq2, sizeof(UL), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue2, vertex * sizeof(UL), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->nq2, host->nq, sizeof(UL), cudaMemcpyHostToDevice));
 }
 
 inline int get_warp_size() {
