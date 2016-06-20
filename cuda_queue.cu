@@ -1,8 +1,5 @@
 #include "driverBFS.c"
 #include "cuda_queue.h"
-#include "lock.h"
-
-#define THREAD 256
 
 __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
     int i, j, warp_id, increment;
@@ -46,7 +43,6 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     // Creo le strutture dati per passare i parametri al Device (GPU)
     gpudata host;
     gpudata dev;
-    Lock mutex;
 
     // Inizializzo i dati prima sull' Host (CPU)
     host.queue = (UL *) Malloc(csrgraph->nv * sizeof(UL));
@@ -63,7 +59,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     for (i = 0; i < csrgraph->nv; i++) host.dist[i] = ULONG_MAX;
 
     host.dist[source] = 0;
-    host.queue[source] = 1;
+    host.queue[0] = source;
     dev.level = host.level = 0;
     dev.warp_size = host.warp_size = get_warp_size();
 
@@ -75,7 +71,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     // Faccio partire i kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(1) {
-        set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, *(host.nq), THREAD);
+        set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, *(host.nq), thread_per_block);
         // Lancio il kernel che si occupa di mettere nella frontiera i vicini
         *(host.nq) = 0;
         kernel_compute_bfs<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);

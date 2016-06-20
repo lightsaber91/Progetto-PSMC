@@ -8,7 +8,7 @@ CFILE = ompBFS.c
 CUFILE = cudaBFS.cu
 HFILE = cudaBFS.h
 CUQUEUE = cuda_queue.cu
-HQUEUE = cuda_queue.h lock.h
+HQUEUE = cuda_queue.h
 DRIVER = driverBFS.c
 TARGET = bfs_omp bfs_cuda bfs_cuda_queue
 

@@ -70,15 +70,6 @@ UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {
                 }
             }
 		}
-        fprintf(stdout, "\t Exploring level %lu,     the next queue = %lu\n", d, ql-qs);
-        if(csrg->nv < 50) {
-            fprintf(stdout, "\t Queue:\t");
-            for (i = start; i < end; i++) fprintf(stdout, "%lu ", q[i]);
-            fprintf(stdout, "\n");
-            fprintf(stdout, "\t Visited:\t");
-            for (i = 0; i < csrg->nv; i++) fprintf(stdout, "%d ", visited[i]);
-            fprintf(stdout, "\n");
-        }
         d++;
     }
 
