@@ -2,7 +2,13 @@
 #include "cuda_queue.h"
 
 __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
-    int i, j, warp_id, increment;
+
+    __syncthreads();
+    if(threadIdx.x == 0) {
+        printf("\t\t\t CUDA LAUNCHED:= %lu\n", *(data.nq));
+    }
+
+    int i, j, warp_id, increment, my_location;
     UL U, V, s, e, *node;
     /* Dimensione del warp */
     int warp_size = data.warp_size;
@@ -14,7 +20,6 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
     increment = (gridDim.x * blockDim.x)/warp_size;
     for(i = warp_id; i < *(data.nq); i+= increment) {
         U = data.queue[i];
-        data.visited[U] = 1;
 
         s = csrg.offsets[U];
         e = csrg.offsets[U+1] - s;
@@ -25,11 +30,17 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
             /* Inserisco il nodo vicino nella frontiera */
             V = node[j];
             if ((data.visited[V] != 1) && (data.dist[V] == ULONG_MAX)) {
-                data.queue[*(data.nq2)] = V;
-                atomicAdd((unsigned long long int *) data.nq2, (unsigned long long) 1);
-                data.dist[V]   = data.level + 1;
+                if(atomicExch((unsigned int *) &data.visited[V], (unsigned int) 1) == 0) {
+                    my_location = atomicAdd((unsigned long long *) data.nq2, (unsigned long long) 1);
+                    data.queue2[my_location] = V;
+                    data.dist[V] = data.level + 1;
+                }
             }
         }
+    }
+    __syncthreads();
+    if(threadIdx.x == 0) {
+        printf("\t\t\t QUEUE BY CUDA:= %lu\n", *(data.nq2));
     }
 }
 
@@ -48,17 +59,18 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     host.queue = (UL *) Malloc(csrgraph->nv * sizeof(UL));
     host.queue2 = (UL *) Malloc(csrgraph->nv * sizeof(UL));
     host.dist = (UL *) Malloc(csrgraph->nv * sizeof(UL));
-    host.visited = (char *) Malloc(csrgraph->nv * sizeof(char));
+    host.visited = (int *) Malloc(csrgraph->nv * sizeof(int));
     host.nq = (UL *) Malloc(sizeof(UL));
     host.nq2 = (UL *) Malloc(sizeof(UL));
     *(host.nq) = 1;
     *(host.nq2) = 0;
     memset(host.queue, 0, csrgraph->nv * sizeof(UL));
     memset(host.queue2, 0, csrgraph->nv * sizeof(UL));
-    memset(host.visited, 0, csrgraph->nv * sizeof(char));
+    memset(host.visited, 0, csrgraph->nv * sizeof(int));
     for (i = 0; i < csrgraph->nv; i++) host.dist[i] = ULONG_MAX;
 
     host.dist[source] = 0;
+    host.visited[source] = 1;
     host.queue[0] = source;
     dev.level = host.level = 0;
     dev.warp_size = host.warp_size = get_warp_size();
@@ -73,18 +85,12 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     while(1) {
         set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, *(host.nq), thread_per_block);
         // Lancio il kernel che si occupa di mettere nella frontiera i vicini
-        *(host.nq) = 0;
         kernel_compute_bfs<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
-        cudaDeviceSynchronize();
+//        cudaDeviceSynchronize();
         // Controllo e inverto le code
-        copy_back_data_and_swap(&host, &dev, csrgraph->nv);
-        printf("\n\tNUM THREADS:= %d", num_threads);
-        printf("\n\tNUM BLOCKS := %d", num_blocks);
-        printf("\n\tNEXT QUEUE := %d\n\n", *(host.nq2));
-
-        if(*(host.nq2) == 0 )
+        if(swap_queues_and_check(&host, &dev, csrgraph->nv) == false) {
             break;
-        *(host.nq) = *(host.nq2);
+        }
         // Incremento la distanza
         dev.level += 1;
     }
@@ -97,6 +103,11 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     // Libero la memoria sul device
     free_gpu_data(&dev);
 
+    for(i = 0; i < csrgraph->nv; i++) {
+        if(host.visited[i] != 1) {
+            printf("nodo %lu non visitato\n", i);
+        }
+    }
     // Libero la memoria sull'host
     free(host.queue);
     free(host.queue2);
