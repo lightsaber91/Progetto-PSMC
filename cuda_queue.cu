@@ -3,13 +3,8 @@
 
 __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
 
-    __syncthreads();
-    if(threadIdx.x == 0) {
-        printf("\t\t\t CUDA LAUNCHED:= %lu\n", *(data.nq));
-    }
-
-    int i, j, warp_id, increment, my_location;
-    UL U, V, s, e, *node;
+    int i, j, warp_id, increment;
+    UL U, V, s, e, my_location, *node;
     /* Dimensione del warp */
     int warp_size = data.warp_size;
     /* Quanti warp ci sono in ogni blocco */
@@ -18,6 +13,7 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
     warp_id = blockIdx.x * warps_block + threadIdx.x / warp_size;
     /* Incremento da effettuare ogni iterazione del ciclo */
     increment = (gridDim.x * blockDim.x)/warp_size;
+
     for(i = warp_id; i < *(data.nq); i+= increment) {
         U = data.queue[i];
 
@@ -37,10 +33,6 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
                 }
             }
         }
-    }
-    __syncthreads();
-    if(threadIdx.x == 0) {
-        printf("\t\t\t QUEUE BY CUDA:= %lu\n", *(data.nq2));
     }
 }
 

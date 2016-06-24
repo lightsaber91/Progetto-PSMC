@@ -103,15 +103,7 @@ inline bool swap_queues_and_check(gpudata *host, gpudata *gpu, UL vertex) {
     HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue2, vertex * sizeof(UL), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->nq2, &nq, sizeof(UL), cudaMemcpyHostToDevice));
 
-    printf("\n\tNQ2:= %lu\n", *(host->nq2));
-    printf("\tQueue:= ");
-    for(UL i = 0; i < *(host->nq2); i++) {
-        printf("%lu ", host->queue2[i]);
-    }
-    printf("\n");
-
     if(*(host->nq2) == 0) {
-        printf("\nInterrompo\n\n");
         return false;
     }
     *(host->nq) = *(host->nq2);
@@ -146,28 +138,29 @@ inline void set_threads_and_blocks(int *threads, int *blocks, int warp, UL queue
         num_blocks = num_threads / thread_per_block;
         if(num_threads % thread_per_block > 0) num_blocks++;
         if(num_blocks <= max_blocks) {
-            *threads = num_threads;
+            *threads = thread_per_block;
             *blocks = num_blocks;
             return;
         }
         do {
             num_blocks /= 2;
         } while(num_blocks > max_blocks);
-        *threads = num_threads;
+        *threads = thread_per_block;
         *blocks = num_blocks;
         return;
     }
+
     num_blocks = num_threads / max_thread_per_block;
     if(num_threads % max_thread_per_block > 0) num_blocks++;
     if(num_blocks <= max_blocks) {
-        *threads = num_threads;
+        *threads = max_thread_per_block;
         *blocks = num_blocks;
         return;
     }
     do {
         num_blocks /= 2;
     } while(num_blocks > max_blocks);
-    *threads = num_threads;
+    *threads = max_thread_per_block;
     *blocks = num_blocks;
     return;
 }
