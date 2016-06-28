@@ -263,7 +263,10 @@ int main(int argc, char **argv)
         // YOUR GRAPH TRAVERSAL GOES HERE AND MUST RETURN THE ARRAY: UL *distances
         //////////////////////////////////////////////////////////////////////////
         //distances = traverse_wrong(edges, nedges, nvertices, root, 0, 0);
-        distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0, thread);
+        for(thread = 32; thread <= 1024; thread*=2) {
+            distances = traverse_parallel(edges, nedges, nvertices, root, 0, 0, thread);
+            if(thread < 1024) free(distances);
+        }
         //////////////////////////////////////////////////////////////////////////
 
         isvalid = validate_bfs(edges, nedges, nvertices, root, distances);
@@ -342,15 +345,15 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
                 V = csrg->rows[j];
                 // If V is not visited enqueue it
                 if ((visited[V] != 1) && (dist[V] == ULONG_MAX)) {
-                    if (nq2 > (csrg->ne - 1)) {fprintf(stderr, "Queue overflow error!\nExit!\n");exit(EXIT_FAILURE);}
+//                    if (nq2 > (csrg->ne - 1)) {fprintf(stderr, "Queue overflow error!\nExit!\n");exit(EXIT_FAILURE);}
                     q2[nq2++] = V;
                     dist[V]   = d + 1;
                 }
             }
         }
 
- /*       fprintf(stdout, "\tExploring level %lu,    the next queue = %lu\n", d, nq2);
-        if(csrg->nv < 50) {
+//        fprintf(stdout, "\tExploring level %lu,    the next queue = %lu\n", d, nq2);
+/*        if(csrg->nv < 50) {
         fprintf(stdout, "\tcurrent queue:\t");
         for (i = 0; i < nq1; i++) fprintf(stdout, "%lu ", q1[i]);
         fprintf(stdout, "\n");
@@ -360,7 +363,7 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
         fprintf(stdout, "\tnext queue:\t");
         for (i = 0; i < nq2; i++) fprintf(stdout, "%lu ", q2[i]);
         fprintf(stdout, "\n");
-        }*/
+    }*/
         if (nq2 == 0) break;
 
         nq1   = nq2;
@@ -376,7 +379,7 @@ UL *do_bfs_serial(UL source, csrdata *csrg)
         }
     }
 
- //   fprintf(stdout, "Finished BFS, visited %lu nodes\n", nvisited);
+//    fprintf(stdout, "Finished BFS, visited %lu nodes\n", nvisited);
     UL count = 0;
     for (i = 0; i < csrg->nv; i++) {
         if (visited[i] == 1)
@@ -426,8 +429,8 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
 
     // Vars for timing
     struct timeval begin, end;
-    double bfstime, csrtime, tottime = 0.0;
-    int timer = 1, i;
+    double bfstime, csrtime, total = 0.0;
+    int timer = 1;
 
     csrgraph.offsets = NULL;
     csrgraph.rows    = NULL;
@@ -442,7 +445,7 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
     build_csr(edges, nedges, nvertices, &csrgraph);
     END_TIMER(end);
     ELAPSED_TIME(csrtime, begin, end)
-    if (csrgraph.nv < 50) print_csr(&csrgraph);
+//    if (csrgraph.nv < 50) print_csr(&csrgraph);
 
     if (randsource) {
         root = random_source(&csrgraph, seed);
@@ -450,15 +453,15 @@ UL *traverse(UL *edges, UL nedges, UL nvertices, UL root, int randsource, int se
     }
 
     // Perform a BFS traversal that returns the array of distances from the source
-    for(i = 0; i < 10; i++) {
+    for(int i = 0; i < 10; i++) {
         START_TIMER(begin)
         dist = do_bfs_serial(root, &csrgraph);
         END_TIMER(end);
         ELAPSED_TIME(bfstime, begin, end)
-	tottime += bfstime;
-        if( i < 9 ) free(dist);
+        if(i < 9) free(dist);
+        total += bfstime;
     }
-    bfstime = tottime / 10;
+    bfstime = total / 10;
     // Timing output
     fprintf(stdout, "\n");
     fprintf(stdout, "build csr  time = \t%.5f\n", csrtime);
