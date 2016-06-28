@@ -1,0 +1,57 @@
+
+Running CPU BFS:
+	scale              = 20
+	average degree     = 150
+	number of vertices = 1048576
+	number of edges    = 157286400
+	random seed 1      = 1
+	random seed 2      = 2
+	sizeof(vertex)     = 8
+
+Graph generation:
+	graph type = GENERATING SIMPLE RANDOM
+	vertices   = 1048576
+	edges      = 157286400
+	Mirroring edges -> Graph will be undirected, nedges = 314572655
+	Removing self loop and multi edges
+N egdes 314572655
+
+
+
+	Edges after removing = 314527448
+The number of edges in the undirected graph is 314572655
+Removed 45207 edges
+
+generation time = 	6.59581
+undirected time = 	171.28095
+do statis  time = 	0.00000
+
+
+Cuda build csr= 	58.43154
+Cuda bfs time = 	0.12678 with:= 32 thread per block
+
+
+Cuda build csr= 	59.36342
+Cuda bfs time = 	0.12265 with:= 64 thread per block
+
+
+Cuda build csr= 	59.21417
+Cuda bfs time = 	0.12628 with:= 128 thread per block
+
+
+Cuda build csr= 	59.14112
+Cuda bfs time = 	0.12701 with:= 256 thread per block
+
+
+Cuda build csr= 	59.35677
+Cuda bfs time = 	0.12581 with:= 512 thread per block
+
+
+Cuda build csr= 	59.43840
+Cuda bfs time = 	0.11892 with:= 1024 thread per block
+
+
+build csr  time = 	56.85560
+do BFS     time = 	3.66601
+
+Well done!
