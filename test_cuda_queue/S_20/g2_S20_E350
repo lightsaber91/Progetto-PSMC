@@ -52,6 +52,6 @@ Cuda bfs time = 	0.18077 with:= 1024 thread per block
 
 
 build csr  time = 	101.26165
-do BFS     time = 	3.22553
+do BFS     time = 	3.29553
 
 Well done!
