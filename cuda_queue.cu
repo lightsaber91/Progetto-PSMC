@@ -26,11 +26,10 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
             /* Inserisco il nodo vicino nella frontiera */
             V = node[j];
             if ((data.visited[V] != 1) && (data.dist[V] == ULONG_MAX)) {
-                if(atomicExch((unsigned int *) &data.visited[V], (unsigned int) 1) == 0) {
-                    my_location = atomicAdd((unsigned int *) data.nq2, (unsigned int) 1);
-                    data.queue2[my_location] = V;
-                    data.dist[V] = data.level + 1;
-                }
+                data.visited[V] = 1;
+                my_location = atomicAdd((unsigned int *) data.nq2, (unsigned int) 1);
+                data.queue2[my_location] = V;
+                data.dist[V] = data.level + 1;
             }
         }
     }
@@ -51,14 +50,14 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     host.queue = (int *) Malloc(csrgraph->nv * sizeof(int));
     host.queue2 = (int *) Malloc(csrgraph->nv * sizeof(int));
     host.dist = (UL *) Malloc(csrgraph->nv * sizeof(UL));
-    host.visited = (int *) Malloc(csrgraph->nv * sizeof(int));
+    host.visited = (char *) Malloc(csrgraph->nv * sizeof(char));
     host.nq = (int *) Malloc(sizeof(int));
     host.nq2 = (int *) Malloc(sizeof(int));
     *(host.nq) = 1;
     *(host.nq2) = 0;
     memset(host.queue, 0, csrgraph->nv * sizeof(int));
     memset(host.queue2, 0, csrgraph->nv * sizeof(int));
-    memset(host.visited, 0, csrgraph->nv * sizeof(int));
+    memset(host.visited, 0, csrgraph->nv * sizeof(char));
     for (i = 0; i < csrgraph->nv; i++) host.dist[i] = ULONG_MAX;
 
     host.dist[source] = 0;
