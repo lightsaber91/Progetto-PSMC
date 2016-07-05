@@ -578,6 +578,144 @@ UL  *gen_rmat(UL ned, int scale, float a, float ab, float abc, int seed)
     return ed;
 }
 
+/*
+// Degree distribution
+int compute_dd(UL *edgelist, UL nedges, UL nv)
+{
+    UL       *deg;         // array of degrees
+    UL       Vi, Vj;       // edge ends
+    float    bin;          // bin size
+    int      nbin;         // number of bin
+    UL       *count;       // array that stores the distribution
+    int      id;           // index of count
+    UL       i, totcount;
+
+    deg = (UL *)malloc(2*nv*sizeof(UL));
+    if (NULL == deg) {
+        fprintf(stderr, "Error malloc deg. Exit.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Compute in degree and out degree
+    for (i = 0; i < nedges; i++) {
+        Vi = edgelist[2*i];
+        Vj = edgelist[2*i+1];
+        deg[2*Vi]   += 1;
+        deg[2*Vj+1] += 1;
+    }
+    //for(i = 0; i < nv; i++) fprintf(stdout, "out-deg[%lu] = %lu\n", i, deg[2*i]);
+
+    // Compute the Degree distribution
+    nbin = (NBIN > nv) ? nv : NBIN;
+    bin  = (float)nv/nbin;
+
+    count = (UL *)malloc(nbin*sizeof(UL));
+    if (NULL == count) {
+        fprintf(stderr, "Erro malloc count! Exit.\n");
+        exit(EXIT_FAILURE);
+    }
+    memset(count, 0, nbin*sizeof(UL));
+
+    for (i = 0; i < nv; i++) {
+        id = i/bin;
+        count[id] += deg[2*i];
+    }
+    totcount = 0;
+    for (i = 0; i < nbin; i++) {
+        totcount += count[i];
+    }
+    if (totcount != nedges) {
+        fprintf(stderr, "%s: totcount1 = %lu != nedges = %lu\n", __func__, totcount, nedges);
+        exit(EXIT_FAILURE);
+    }
+
+    // Print the degree distribution
+    fprintf(stdout, "\nDegree distribution:\n");
+    fprintf(stdout, "\tnum vertices = %lu\n",  nv);
+    fprintf(stdout, "\tnum edges    = %lu\n",  nedges);
+    fprintf(stdout, "\tbin size     = %.2f\n",  bin);
+    fprintf(stdout, "\tnum of bins  = %d\n", nbin);
+    fprintf(stdout, "\n\t[label interval] [degree]\n");
+    for (i = 0; i < nbin; i++) fprintf(stdout, "\t[%lu - %lu] = %lu\n", (UL)(i*bin), (UL)((i+1)*bin), count[i]); fflush(stdout);
+
+    // Max out/in-going degree, zero/one-degree vertices
+    UL maxind, maxoutd, maxd;
+    UL zeroind, zerooutd;
+    UL oneind, oneoutd;
+    maxind  = maxoutd  = 0;
+    zeroind = zerooutd = 0;
+    oneind  = oneoutd  = 0;
+    for(i = 0; i < nv; i++) {
+        if(deg[2*i]   > maxoutd) maxoutd  = deg[2*i];
+        if(deg[2*i+1] > maxind)  maxind   = deg[2*i+1];
+        if(deg[2*i]   == 0)      zerooutd += 1;
+        if(deg[2*i+1] == 0)      zeroind  += 1;
+        if(deg[2*i]   == 1)      oneoutd  += 1;
+        if(deg[2*i+1] == 1)      oneind   += 1;
+    }
+    maxd = (maxind > maxoutd) ? maxind : maxoutd;
+
+    // Count how many nodes has a certain value of out-degree
+    UL minnbin = maxoutd + 1;
+    nbin = (NBIN > minnbin) ? minnbin : NBIN;
+    bin  = (float)minnbin/nbin;
+
+    UL *newcount;
+    newcount = (UL *)malloc(nbin*sizeof(UL));
+    if (NULL == newcount) {
+        fprintf(stderr, "Erro malloc count! Exit.\n");
+        exit(EXIT_FAILURE);
+    }
+    memset(newcount, 0, nbin*sizeof(UL));
+
+    for (i = 0; i < nv; i++) {
+        id = deg[2*i]/bin;
+        newcount[id] += 1;
+    }
+    totcount = 0;
+    for (i = 0; i < nbin; i++) {
+        totcount += newcount[i];
+    }
+
+    fprintf(stdout, "\nNode-Degree distribution:\n");
+    fprintf(stdout, "\tnum vertices = %lu\n",  nv);
+    fprintf(stdout, "\tnum edges    = %lu\n",  nedges);
+    fprintf(stdout, "\tbin size     = %.2f\n", bin);
+    fprintf(stdout, "\tnum of bins  = %d\n",   nbin);
+    fprintf(stdout, "\tmax in-deg   = %lu\n",  maxind);
+    fprintf(stdout, "\tmax out-eg   = %lu\n",  maxoutd);
+    fprintf(stdout, "\tzero in-deg  = %lu\n",  zeroind);
+    fprintf(stdout, "\tzero out-deg = %lu\n",  zerooutd);
+    fprintf(stdout, "\tone in-deg   = %lu\n",  oneind);
+    fprintf(stdout, "\tone out-deg  = %lu\n",  oneoutd);
+    fprintf(stdout, "\n\t[degree interval] [nodes]\n");
+    for (i = 0; i < nbin; i++) fprintf(stdout, "\t[%lu - %lu] = [%lu]\n", (UL)(i*bin), (UL)((i+1)*bin), newcount[i]); fflush(stdout);
+    if (totcount != nv) {
+        fprintf(stderr, "%s: totcount2 = %lu != nedges = %lu\n", __func__, totcount, nv);
+        exit(EXIT_FAILURE);
+    }
+
+    if(deg)      free(deg);
+    if(count)    free(count);
+    if(newcount) free(newcount);
+
+    return 0;
+}
+*/
+/*
+    Read a directed graph from file
+    File format:
+    #
+    # Any number of lines starting with #
+    #
+    # Nodes: 12345 Edges: 123456
+    #
+    # Any number of lines starting with #
+    #
+    V0  V1
+    V2  V3
+    ...
+*/
 #define BUFFSIZE     1024
 #define ALLOC_BLOCK (2*1024)
 
