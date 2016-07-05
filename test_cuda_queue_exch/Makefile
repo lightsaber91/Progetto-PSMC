@@ -6,11 +6,11 @@ CFILE = ompBFS.c
 CUQUEUE = cuda_queue.cu
 HQUEUE = cuda_queue.h
 DRIVER = driverBFS.c
-TARGET = bfs_cuda_no_exch
+TARGET = bfs_cuda_queue
 
 all: $(TARGET)
 
-bfs_cuda_no_exch: $(CUQUEUE) $(HQUEUE) $(DRIVER)
+bfs_cuda_queue: $(CUQUEUE) $(HQUEUE) $(DRIVER)
 		$(NVCC) $(CUDAFLAG) $(CUQUEUE) -o $@
 
 .PHONY: clean

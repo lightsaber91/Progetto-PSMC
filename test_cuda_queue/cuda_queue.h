@@ -1,7 +1,7 @@
 // Definisco la struttura dati che mi serviranno sul device
 typedef struct _gpudata{
     int warp_size;
-    int *visited;
+    char *visited;
     UL *dist;
     int *queue;
     int *queue2;
@@ -60,14 +60,14 @@ inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu, UL vertex) {
     HANDLE_ERROR(cudaMalloc((void**) &gpu->queue, vertex * sizeof(int)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->queue2, vertex * sizeof(int)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->dist, vertex * sizeof(UL)));
-    HANDLE_ERROR(cudaMalloc((void**) &gpu->visited, vertex * sizeof(int)));
+    HANDLE_ERROR(cudaMalloc((void**) &gpu->visited, vertex * sizeof(char)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->nq, sizeof(int)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->nq2, sizeof(int)));
 
     HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue, vertex * sizeof(int), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->queue2, host->queue2, vertex * sizeof(int), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->dist, host->dist, vertex * sizeof(UL), cudaMemcpyHostToDevice));
-    HANDLE_ERROR(cudaMemcpy(gpu->visited, host->visited, vertex * sizeof(int), cudaMemcpyHostToDevice));
+    HANDLE_ERROR(cudaMemcpy(gpu->visited, host->visited, vertex * sizeof(char), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->nq, host->nq, sizeof(int), cudaMemcpyHostToDevice));
     HANDLE_ERROR(cudaMemcpy(gpu->nq2, host->nq2, sizeof(int), cudaMemcpyHostToDevice));
 }
