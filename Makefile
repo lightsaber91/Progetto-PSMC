@@ -5,17 +5,21 @@ NVCC = nvcc
 CFLAGS = -std=gnu99 -W -Wall -Wextra -O3 -fopenmp
 CUDAFLAG = -m64 -arch=sm_35 -O3 -Xcompiler -std=c++98
 CFILE = ompBFS.c
+CQUEUE = omp_queue.c
 CUFILE = cudaBFS.cu
 HFILE = cudaBFS.h
 CUQUEUE = cuda_queue.cu
 HQUEUE = cuda_queue.h
 DRIVER = driverBFS.c
-TARGET = bfs_omp bfs_cuda bfs_cuda_queue
+TARGET = bfs_omp bfs_omp_queue bfs_cuda bfs_cuda_queue
 
 all: $(TARGET)
 
 bfs_omp: $(CFILE) $(DRIVER)
 	$(CC) $(CFLAGS) $(CFILE) $(CCOMPFLAG) -o $@
+
+bfs_omp_queue: $(CFILE) $(DRIVER)
+		$(CC) $(CFLAGS) $(CQUEUE) $(CCOMPFLAG) -o $@
 
 bfs_cuda: $(CUFILE) $(HFILE) $(DRIVER)
 	$(NVCC) $(CUDAFLAG) $(CUFILE) -o $@
