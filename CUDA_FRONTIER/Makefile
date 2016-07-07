@@ -1,4 +1,4 @@
-# Simone Martucci Makefile per bfs con OpenMp e Cuda
+# Simone Martucci Makefile per bfs con Cuda
 
 NVCC = nvcc
 CUDAFLAG = -m64 -arch=sm_35 -O3 -Xcompiler -std=c++98
