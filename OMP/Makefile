@@ -10,12 +10,14 @@ TARGET = omp queue_omp
 all: $(TARGET)
 
 omp: $(CFILE) $(SOURCE)
-	$(CC) $(CFLAGS) $(CFILE) $(CCOMPFLAG) -o $@
+	$(CC) $(CFLAGS) $(CFILE) $(CCOMPFLAG) -o ../$@
 
 queue_omp: $(CFILE) $(SOURCE)
-		$(CC) $(CFLAGS) $(CQUEUE) $(CCOMPFLAG) -o $@
+		$(CC) $(CFLAGS) $(CQUEUE) $(CCOMPFLAG) -o ../$@
 
 .PHONY: clean
 
 clean:
-	rm -f $(TARGET) dist_file.dat
+	for file in $(TARGET); do \
+		rm -f ../$$file dist_file.dat; \
+	done

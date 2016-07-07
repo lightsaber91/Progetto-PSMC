@@ -9,9 +9,9 @@ TARGET = cuda_frontier_bfs
 all: $(TARGET)
 
 cuda_frontier_bfs: $(CUFILE) $(SOURCE)
-	$(NVCC) $(CUDAFLAG) $(CUFILE) -o $@
+	$(NVCC) $(CUDAFLAG) $(CUFILE) -o ../$@
 
 .PHONY: clean
 
 clean:
-	rm -f $(TARGET) dist_file.dat
+	rm -f ../$(TARGET) dist_file.dat
