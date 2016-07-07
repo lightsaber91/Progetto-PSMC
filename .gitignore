@@ -2,4 +2,4 @@ dist_file.dat
 cuda_frontier_bfs
 cuda_queue_bfs
 omp
-omp_queue
+queue_omp
