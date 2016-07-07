@@ -1,4 +1,4 @@
-#include "driverBFS.c"
+#include "../source/driverBFS.c"
 #include <omp.h>
 
 UL *do_bfs_omp(UL source, csrdata *csrg, int thread) {

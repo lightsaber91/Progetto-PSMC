@@ -6,12 +6,12 @@ CFLAGS = -std=gnu99 -W -Wall -Wextra -O3 -fopenmp
 CUDAFLAG = -m64 -arch=sm_35 -O3 -Xcompiler -std=c++98
 CFILE = ompBFS.c
 CQUEUE = omp_queue.c
-CUFILE = cudaBFS.cu
-HFILE = cudaBFS.h
-CUQUEUE = cuda_queue.cu
-HQUEUE = cuda_queue.h
+CUFILE = cuda_frontier_kernel.cu
+HFILE = cuda_error.h cuda_csr.h cuda_timer.h cuda_frontier_data.h
+CUQUEUE = cuda_queue_kernel.cu
+HQUEUE = cuda_error.h cuda_csr.h cuda_timer.h cuda_queue_utils.h cuda_queue_data.h
 DRIVER = driverBFS.c
-TARGET = bfs_omp bfs_omp_queue bfs_cuda bfs_cuda_queue
+TARGET = bfs_omp bfs_omp_queue bfs_frontier_cuda bfs_queue_cuda
 
 all: $(TARGET)
 
@@ -21,10 +21,10 @@ bfs_omp: $(CFILE) $(DRIVER)
 bfs_omp_queue: $(CFILE) $(DRIVER)
 		$(CC) $(CFLAGS) $(CQUEUE) $(CCOMPFLAG) -o $@
 
-bfs_cuda: $(CUFILE) $(HFILE) $(DRIVER)
+bfs_frontier_cuda: $(CUFILE) $(HFILE) $(DRIVER)
 	$(NVCC) $(CUDAFLAG) $(CUFILE) -o $@
 
-bfs_cuda_queue: $(CUQUEUE) $(HQUEUE) $(DRIVER)
+bfs_queue_cuda: $(CUQUEUE) $(HQUEUE) $(DRIVER)
 		$(NVCC) $(CUDAFLAG) $(CUQUEUE) -o $@
 
 .PHONY: clean

@@ -1,5 +1,5 @@
-#include "driverBFS.c"
-#include "cuda_queue.h"
+#include "../source/driverBFS.c"
+#include "cuda_queue_data.h"
 
 __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
 
@@ -14,7 +14,7 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
     /* Incremento da effettuare ogni iterazione del ciclo */
     increment = (gridDim.x * blockDim.x)/warp_size;
 
-    for(i = warp_id; i < *(data.nq); i+= increment) {
+    for(i = warp_id; i < *(data.neigh); i+= increment) {
         U = data.queue[i];
 
         s = csrg.offsets[U];
@@ -53,28 +53,34 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     host.visited = (char *) Malloc(csrgraph->nv * sizeof(char));
     host.nq = (int *) Malloc(sizeof(int));
     host.nq2 = (int *) Malloc(sizeof(int));
+    host.neigh = (int *) Malloc(sizeof(int));
     *(host.nq) = 1;
     *(host.nq2) = 0;
+    *(host.neigh) = 0;
     memset(host.queue, 0, csrgraph->nv * sizeof(int));
     memset(host.queue2, 0, csrgraph->nv * sizeof(int));
     memset(host.visited, 0, csrgraph->nv * sizeof(char));
     for (i = 0; i < csrgraph->nv; i++) host.dist[i] = ULONG_MAX;
-
     host.dist[source] = 0;
     host.visited[source] = 1;
-    host.queue[0] = source;
     dev.level = host.level = 0;
     dev.warp_size = host.warp_size = get_warp_size();
+    int neightbour = csrgraph->offsets[source+1] - csrgraph->offsets[source];
+    neightbour = neightbour / host.warp_size + !!(neightbour % host.warp_size);
+    for (i = 0; i < neightbour; i++) {
+        host.queue[i] = source;
+    }
+    *(host.neigh) = i;
 
     // Inizio ad allocare memoria e copiare i dati sul device (GPU)
     START_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
-    copy_data_on_gpu(&host, &dev, csrgraph->nv);
+    copy_data_on_gpu(&host, &dev, csrgraph->nv, csrgraph->ne);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
     printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
     // Faccio partire i kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(1) {
-        set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, *(host.nq), thread_per_block);
+        set_threads_and_blocks(&num_threads, &num_blocks, dev.warp_size, *(host.neigh), thread_per_block);
         // Lancio il kernel che si occupa di mettere nella frontiera i vicini
         kernel_compute_bfs<<<num_blocks, num_threads>>>(dev, *csrgraph_gpu);
         // Controllo e inverto le code
@@ -97,6 +103,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     free(host.queue);
     free(host.queue2);
     free(host.visited);
+    free(host.neigh);
     *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
 }

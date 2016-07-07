@@ -1,5 +1,5 @@
-cuda
 dist_file.dat
+cuda_frontier_bfs
+cuda_queue_bfs
 omp
-omp_arch
-bfs_*
+omp_queue

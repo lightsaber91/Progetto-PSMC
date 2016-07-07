@@ -1,5 +1,5 @@
-#include "driverBFS.c"
-#include "cudaBFS.h"
+#include "../source/driverBFS.c"
+#include "cuda_frontier_data.h"
 
 __global__ void kernel_set_frontier(gpudata data, csrdata csrg) {
 
