@@ -1,15 +1,28 @@
 # Simone Martucci Makefile per bfs con OpenMp e Cuda
 
-SUBDIRS = OMP CUDA_FRONTIER CUDA_QUEUE
+CLEAN = omp_clean frontier_clean queue_clean
+TARGET = omp queue frontier
 
-all:
-	for dir in $(SUBDIRS); do \
-        $(MAKE) -C $$dir; \
-    done
+all: $(TARGET)
+
+omp:
+	$(MAKE) -C OMP;
+
+queue:
+	$(MAKE) -C CUDA_QUEUE;
+
+frontier:
+	$(MAKE) -C CUDA_FRONTIER;
 
 .PHONY: clean
 
-clean:
-	for dir in $(SUBDIRS); do \
-        $(MAKE) -C $$dir clean; \
-    done
+clean: $(CLEAN)
+
+omp_clean:
+	$(MAKE) -C OMP clean;
+
+frontier_clean:
+	$(MAKE) -C CUDA_FRONTIER clean;
+
+queue_clean:
+	$(MAKE) -C CUDA_QUEUE clean;

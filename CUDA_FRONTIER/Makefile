@@ -3,7 +3,7 @@
 NVCC = nvcc
 CUDAFLAG = -m64 -arch=sm_35 -O3 -Xcompiler -std=c++98
 CUFILE = cuda_frontier_kernel.cu
-SOURCE = ../source/driverBFS.c ../source/cuda_error.h ../source/cuda_csr.h ../source/cuda_timer.h cuda_frontier_data.h
+SOURCE = cuda_frontier_data.h
 TARGET = cuda_frontier_bfs
 
 all: $(TARGET)
