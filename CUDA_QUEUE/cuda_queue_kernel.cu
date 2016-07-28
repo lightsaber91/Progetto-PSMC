@@ -21,22 +21,24 @@ __global__ void kernel_compute_bfs(gpudata data, csrdata csrg) {
         e = csrg.offsets[U+1] - s;
         node = &csrg.rows[s];
 
-        /* Ora faccio fare il lavoro ad ogni thread */
+        /* Ogni warp elabora una porzione dei vicini */
         j = (threadIdx.x % warp_size) + data.offset[i];
         if(j < e) {
-            /* Inserisco il nodo vicino nella frontiera */
+            /* Ogni thread elabora un vicino */
             V = node[j];
-            // Mi devo contare quanti vicini ha questo nodo
-            neigh = csrg.offsets[V+1] - csrg.offsets[V];
-            neigh = neigh / warp_size + !!(neigh % warp_size);
             if ((data.visited[V] != 1) && (data.dist[V] == ULONG_MAX)) {
+                // Lo imposto come visitato e incremento la distanza
                 data.visited[V] = 1;
-                my_location = atomicAdd(data.nq2, neigh);
+                data.dist[V] = data.level + 1;
+                // Conto quanti vicini ha questo nodo
+                neigh = csrg.offsets[V+1] - csrg.offsets[V];
+                neigh = ((neigh / warp_size) + !!(neigh % warp_size));
+                // Incremento la coda di neigh
+                my_location = atomicAdd((unsigned int *) data.nq2, (unsigned int) neigh);
                 for(k = 0; k < neigh; k++) {
                     data.queue2[k + my_location] = V;
                     data.offset[k + my_location] = k * warp_size;
                 }
-                data.dist[V] = data.level + 1;
             }
         }
     }
@@ -71,7 +73,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     dev.level = host.level = 0;
     dev.warp_size = host.warp_size = get_warp_size();
     int neightbour = csrgraph->offsets[source+1] - csrgraph->offsets[source];
-    neightbour = neightbour / host.warp_size + !!(neightbour % host.warp_size);
+    neightbour = (neightbour / host.warp_size + !!(neightbour % host.warp_size));
     for (i = 0; i < neightbour; i++) {
         host.queue[i] = source;
         host.offset[i] = i * host.warp_size;
@@ -83,6 +85,8 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     copy_data_on_gpu(&host, &dev, csrgraph->nv, csrgraph->ne);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
     printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
+    *(host.nq2) = 1;
+    host.nq = host.nq2;
     // Faccio partire i kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(1) {
@@ -101,7 +105,7 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     printf("Time spent for cuda bfs: %.5f\n", bfs_time);
 
     // Mi copio l'array di distanze su host per effettuare il controllo
-    copy_data_on_host(&host, &dev, csrgraph->nv);
+    copy_dist_on_host(&host, &dev, csrgraph->nv);
     // Libero la memoria sul device
     free_gpu_data(&dev);
 
@@ -109,6 +113,8 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     free(host.queue);
     free(host.queue2);
     free(host.visited);
+    free(host.offset);
+
     *cudatime = alloc_copy_time + bfs_time;
     return host.dist;
 }

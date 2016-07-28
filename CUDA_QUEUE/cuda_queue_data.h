@@ -9,7 +9,7 @@ typedef struct _gpudata{
     UL *dist;                   // Array per salvare le distanze
     char *visited;              // Array per impostare i nodi come visitati
     int warp_size;              // Dimensione del Warp
-    int *queue;                 // Coda da analizzare in questo livello
+    int *queue;                 // Coda da analizzare in questa iterazione
     int *queue2;                // Coda da analizzare nell'iterazione successiva
     int *nq;                    // Lunghezza della coda attuale
     int *nq2;                   // Lunghezza della seconda coda
@@ -18,7 +18,6 @@ typedef struct _gpudata{
 
 // Copio la struttura dati apposita su device
 inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu, UL vertex, UL edges) {
-
     HANDLE_ERROR(cudaMalloc((void**) &gpu->queue, edges * sizeof(int)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->queue2, edges * sizeof(int)));
     HANDLE_ERROR(cudaMalloc((void**) &gpu->dist, vertex * sizeof(UL)));
@@ -37,7 +36,7 @@ inline void copy_data_on_gpu(const gpudata *host, gpudata *gpu, UL vertex, UL ed
 }
 
 // Copio i risultati sull'host
-inline void copy_data_on_host(gpudata *host, gpudata *gpu, UL vertex) {
+inline void copy_dist_on_host(gpudata *host, gpudata *gpu, UL vertex) {
     HANDLE_ERROR(cudaMemcpy(host->dist, gpu->dist, vertex * sizeof(UL),cudaMemcpyDeviceToHost));
 }
 
@@ -63,12 +62,12 @@ inline bool swap_queues_and_check(gpudata *host, gpudata *gpu, UL vertex) {
     temp = gpu->queue;
     gpu->queue = gpu->queue2;
     gpu->queue2 = temp;
+
     // Inverto anche i contatori e resetto nq2
     temp = gpu->nq;
     gpu->nq = gpu->nq2;
     gpu->nq2 = temp;
     HANDLE_ERROR(cudaMemcpy(gpu->nq2, &zero, sizeof(int), cudaMemcpyHostToDevice));
-    // Inverto anche su cpu
-    host->nq = host->nq2;
+
     return true;
 }
