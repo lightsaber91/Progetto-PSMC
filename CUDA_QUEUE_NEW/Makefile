@@ -4,11 +4,11 @@ NVCC = nvcc
 CUDAFLAG = -m64 -arch=sm_35 -O3 -Xcompiler -std=c++98
 CUFILE = cuda_queue_kernel.cu
 SOURCE = cuda_queue_data.h cuda_queue_utils.h
-TARGET = cuda_queue_bfs
+TARGET = cuda_queue_new
 
 all: $(TARGET)
 
-cuda_queue_bfs: $(CUFILE) $(SOURCE)
+cuda_queue_new: $(CUFILE) $(SOURCE)
 	$(NVCC) $(CUDAFLAG) $(CUFILE) $(CCOMPFLAG) -o ../$@
 
 .PHONY: clean

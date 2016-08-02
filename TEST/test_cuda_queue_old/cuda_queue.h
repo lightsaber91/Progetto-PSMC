@@ -93,18 +93,23 @@ inline void free_gpu_csr(csrdata *csrgraph) {
 }
 
 inline bool swap_queues_and_check(gpudata *host, gpudata *gpu, UL vertex) {
-    int nq = 0;
+    int zero = 0, *temp;
+    // Effettuo il check su nq2 --> Se maggiore di zero devo itarare nuovamente
     HANDLE_ERROR(cudaMemcpy(host->nq2, gpu->nq2, sizeof(int), cudaMemcpyDeviceToHost));
-    HANDLE_ERROR(cudaMemcpy(host->queue2, gpu->queue2, vertex * sizeof(int), cudaMemcpyDeviceToHost));
-
-    HANDLE_ERROR(cudaMemcpy(gpu->nq, host->nq2, sizeof(int), cudaMemcpyHostToDevice));
-    HANDLE_ERROR(cudaMemcpy(gpu->queue, host->queue2, vertex * sizeof(int), cudaMemcpyHostToDevice));
-    HANDLE_ERROR(cudaMemcpy(gpu->nq2, &nq, sizeof(int), cudaMemcpyHostToDevice));
-
     if(*(host->nq2) == 0) {
         return false;
     }
-    *(host->nq) = *(host->nq2);
+    // Procedo ad invertire le code
+    temp = gpu->queue;
+    gpu->queue = gpu->queue2;
+    gpu->queue2 = temp;
+
+    // Inverto anche i contatori e resetto nq2
+    temp = gpu->nq;
+    gpu->nq = gpu->nq2;
+    gpu->nq2 = temp;
+    HANDLE_ERROR(cudaMemcpy(gpu->nq2, &zero, sizeof(int), cudaMemcpyHostToDevice));
+
     return true;
 }
 

@@ -71,6 +71,8 @@ UL *do_bfs_cuda(UL source, csrdata *csrgraph, csrdata *csrgraph_gpu, double *cud
     copy_data_on_gpu(&host, &dev, csrgraph->nv);
     alloc_copy_time = STOP_CUDA_TIMER(&alloc_copy_start, &alloc_copy_stop);
 //    printf("\nTime spent for allocation and copy: %.5f\n", alloc_copy_time);
+    *(host.nq2) = 1;
+    host.nq = host.nq2;
     // Faccio partire i kernel
     START_CUDA_TIMER(&exec_start, &exec_stop);
     while(1) {
