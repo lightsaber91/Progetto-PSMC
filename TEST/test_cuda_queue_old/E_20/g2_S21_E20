@@ -22,36 +22,36 @@ N egdes 83884266
 The number of edges in the undirected graph is 83884266
 Removed 5114200 edges
 
-generation time = 	24.70804
-undirected time = 	42.93313
+generation time = 	25.38046
+undirected time = 	42.15997
 do statis  time = 	0.00000
 
 
-Cuda build csr= 	14.58446
-Cuda bfs time = 	0.08030 with:= 32 thread per block
+Cuda build csr= 	14.24241
+Cuda bfs time = 	0.04355 with:= 32 thread per block
 
 
-Cuda build csr= 	13.77435
-Cuda bfs time = 	0.07242 with:= 64 thread per block
+Cuda build csr= 	13.51392
+Cuda bfs time = 	0.03494 with:= 64 thread per block
 
 
-Cuda build csr= 	13.73634
-Cuda bfs time = 	0.06669 with:= 128 thread per block
+Cuda build csr= 	13.53599
+Cuda bfs time = 	0.02744 with:= 128 thread per block
 
 
-Cuda build csr= 	13.75646
-Cuda bfs time = 	0.06663 with:= 256 thread per block
+Cuda build csr= 	13.53429
+Cuda bfs time = 	0.02878 with:= 256 thread per block
 
 
-Cuda build csr= 	13.75934
-Cuda bfs time = 	0.06512 with:= 512 thread per block
+Cuda build csr= 	13.53005
+Cuda bfs time = 	0.03231 with:= 512 thread per block
 
 
-Cuda build csr= 	13.73731
-Cuda bfs time = 	0.07727 with:= 1024 thread per block
+Cuda build csr= 	13.51698
+Cuda bfs time = 	0.04025 with:= 1024 thread per block
 
 
-build csr  time = 	13.54847
-do BFS     time = 	0.89002
+build csr  time = 	13.29366
+do BFS     time = 	0.81319
 
 Well done!
